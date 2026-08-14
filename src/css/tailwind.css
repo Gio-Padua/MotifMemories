@@ -1,0 +1,73 @@
+@import 'tailwindcss/theme.css' layer(theme) prefix(tw);
+@import 'tailwindcss/utilities.css' prefix(tw);
+@import 'tw-animate-css/prefix';
+
+@theme inline {
+  --color-background: var(--kiosk-paper);
+  --color-foreground: var(--kiosk-ink);
+  --color-card: var(--kiosk-white);
+  --color-card-foreground: var(--kiosk-ink);
+  --color-popover: var(--kiosk-white);
+  --color-popover-foreground: var(--kiosk-ink);
+  --color-primary: var(--kiosk-ink);
+  --color-primary-foreground: var(--kiosk-paper);
+  --color-secondary: var(--kiosk-butter);
+  --color-secondary-foreground: var(--kiosk-ink);
+  --color-muted: color-mix(in srgb, var(--kiosk-ink) 7%, var(--kiosk-paper));
+  --color-muted-foreground: color-mix(in srgb, var(--kiosk-ink) 68%, var(--kiosk-paper));
+  --color-accent: var(--kiosk-blush);
+  --color-accent-foreground: var(--kiosk-ink);
+  --color-destructive: var(--kiosk-danger);
+  --color-border: color-mix(in srgb, var(--kiosk-ink) 18%, transparent);
+  --color-input: color-mix(in srgb, var(--kiosk-ink) 18%, transparent);
+  --color-ring: var(--kiosk-ink);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --kiosk-paper: #f7f3eb;
+  --kiosk-ink: #171717;
+  --kiosk-blush: #f4b8c2;
+  --kiosk-butter: #f4d77a;
+  --kiosk-mint: #bfd8c2;
+  --kiosk-lavender: #c8bce8;
+  --kiosk-white: #fffdfa;
+  --kiosk-danger: #a93737;
+  --radius: 0.875rem;
+}
+
+@layer base {
+  .kiosk-shell {
+    color: var(--kiosk-ink);
+    background: var(--kiosk-paper);
+  }
+
+  .kiosk-shell ::selection {
+    color: var(--kiosk-ink);
+    background: var(--kiosk-butter);
+  }
+
+  .kiosk-shell :focus-visible {
+    outline: 3px solid var(--kiosk-ink);
+    outline-offset: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiosk-shell *,
+  .kiosk-shell *::before,
+  .kiosk-shell *::after,
+  #index-page *,
+  #index-page *::before,
+  #index-page *::after,
+  [data-slot='dialog-overlay'],
+  [data-slot='dialog-content'] {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

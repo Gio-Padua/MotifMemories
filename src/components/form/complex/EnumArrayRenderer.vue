@@ -1,0 +1,43 @@
+<template>
+  <q-select
+    :id="control.id + '-input'"
+    :model-value="control.data"
+    :class="styles.control.select"
+    :disable="!control.enabled"
+    :options="control.options"
+    :error-message="control.errors"
+    :error="control.errors != ''"
+    multiple
+    use-chips
+    @add="details => addSelected(details.value)"
+    @remove="details => removeSelected(details.value)"
+    filled
+  >
+  </q-select>
+</template>
+
+<script lang="ts">
+import type { ControlElement } from '@jsonforms/core'
+import { defineComponent } from 'vue'
+import { rendererProps, useJsonFormsMultiEnumControl, type RendererProps } from '@jsonforms/vue'
+import { useQuasarBasicControl } from '../util'
+
+export default defineComponent({
+  name: 'EnumArrayRenderer',
+  components: {},
+  props: {
+    ...rendererProps<ControlElement>(),
+  },
+  setup(props: RendererProps<ControlElement>) {
+    return useQuasarBasicControl(useJsonFormsMultiEnumControl(props))
+  },
+  methods: {
+    addSelected(value: any) {
+      this.addItem(this.control.path, value)
+    },
+    removeSelected(value: any) {
+      this.removeItem?.(this.control.path, value)
+    },
+  },
+})
+</script>

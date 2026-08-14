@@ -1,0 +1,89 @@
+<template>
+  <div v-if="visible" :id="id" :class="styles.control.root">
+    <div class="control-wrapper row">
+      <div class="col">
+        <div class="control-label-wrapper">
+          <label :for="id + '-input'" :class="[styles.control.label, required ? styles.control.required : '']">
+            {{ label }}
+          </label>
+          <q-icon v-if="appliedOptions.computeIntense" name="sym_o_memory" color="red" class="q-ml-sm">
+            <q-tooltip>{{ $t('This setting affects CPU/GPU usage.') }}</q-tooltip>
+          </q-icon>
+          <q-icon v-if="appliedOptions.deprecated" name="sym_o_block" color="warning" class="q-ml-sm">
+            <q-tooltip>{{ $t('This setting is deprecated and may be removed in future versions.') }}</q-tooltip>
+          </q-icon>
+        </div>
+        <div class="control-description-wrapper">
+          <!--div :class="styles.control.description">{{ showDescription ? description : "" }}</div-->
+          <div :class="styles.control.description">{{ description }}</div>
+        </div>
+      </div>
+      <div class="control-field col">
+        <div :class="styles.control.wrapper">
+          <slot></slot>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { isDescriptionHidden } from '@jsonforms/core'
+import { defineComponent, type PropType } from 'vue'
+import type { Styles } from '../styles'
+import type { Options } from '../util'
+
+export default defineComponent({
+  name: 'ControlWrapper',
+  props: {
+    id: {
+      required: true,
+      type: String,
+    },
+    description: {
+      required: false as const,
+      type: String,
+      default: undefined,
+    },
+    errors: {
+      required: false as const,
+      type: String,
+      default: undefined,
+    },
+    label: {
+      required: false as const,
+      type: String,
+      default: undefined,
+    },
+    appliedOptions: {
+      required: false as const,
+      type: Object as PropType<Options>,
+      default: undefined,
+    },
+    visible: {
+      required: false as const,
+      type: Boolean,
+      default: true,
+    },
+    required: {
+      required: false as const,
+      type: Boolean,
+      default: false,
+    },
+    isFocused: {
+      required: false as const,
+      type: Boolean,
+      default: false,
+    },
+    styles: {
+      required: true,
+      type: Object as PropType<Styles>,
+    },
+  },
+  computed: {
+    showDescription(): boolean {
+      return !isDescriptionHidden(this.visible, this.description, this.isFocused, !!this.appliedOptions?.showUnfocusedDescription)
+    },
+  },
+})
+</script>
