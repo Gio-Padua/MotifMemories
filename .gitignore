@@ -1,2 +1,9 @@
-# Guest media and generated derivatives
-photobooth-data/media/
+# Local environment
+ptbth/
+
+# Runtime data, customer photos, credentials, and database
+photobooth-data/
+
+# Python-generated files
+**/__pycache__/
+*.py[cod]
