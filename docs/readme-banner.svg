@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+  <title id="title">Motif Moments palette</title>
+  <desc id="desc">A warm white banner with blush, butter, and mint photo-strip shapes.</desc>
+  <rect width="1200" height="420" rx="24" fill="#FFFDFA"/>
+  <rect x="0" y="0" width="14" height="420" rx="7" fill="#F4B8C2"/>
+
+  <g transform="translate(104 58)">
+    <rect width="326" height="304" rx="16" fill="#F4B8C2"/>
+    <rect x="18" y="18" width="136" height="126" rx="7" fill="#FFFDFA"/>
+    <rect x="172" y="18" width="136" height="126" rx="7" fill="#FFFDFA"/>
+    <rect x="18" y="160" width="136" height="126" rx="7" fill="#FFFDFA"/>
+    <rect x="172" y="160" width="136" height="126" rx="7" fill="#FFFDFA"/>
+    <circle cx="50" cy="50" r="15" fill="#F4D77A"/>
+    <circle cx="276" cy="254" r="15" fill="#BFD8C2"/>
+  </g>
+
+  <g transform="translate(650 50)">
+    <g transform="rotate(-3 68 160)">
+      <rect width="136" height="320" rx="9" fill="#F4B8C2"/>
+      <rect x="12" y="14" width="112" height="72" rx="4" fill="#FFFDFA"/>
+      <rect x="12" y="96" width="112" height="72" rx="4" fill="#FFFDFA"/>
+      <rect x="12" y="178" width="112" height="72" rx="4" fill="#FFFDFA"/>
+      <rect x="12" y="260" width="112" height="46" rx="4" fill="#FFFDFA"/>
+    </g>
+    <g transform="translate(142 9) rotate(2 68 155)">
+      <rect width="136" height="310" rx="9" fill="#F4D77A"/>
+      <rect x="12" y="14" width="112" height="72" rx="4" fill="#FFFDFA"/>
+      <rect x="12" y="96" width="112" height="72" rx="4" fill="#FFFDFA"/>
+      <rect x="12" y="178" width="112" height="72" rx="4" fill="#FFFDFA"/>
+      <circle cx="68" cy="279" r="14" fill="#BFD8C2"/>
+    </g>
+    <circle cx="302" cy="42" r="30" fill="#BFD8C2"/>
+    <path d="M286 42h32M302 26v32" stroke="#171717" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(1014 124)">
+    <rect width="82" height="170" rx="10" fill="#BFD8C2"/>
+    <rect x="10" y="12" width="62" height="62" rx="5" fill="#FFFDFA"/>
+    <rect x="10" y="84" width="62" height="62" rx="5" fill="#FFFDFA"/>
+  </g>
+</svg>
