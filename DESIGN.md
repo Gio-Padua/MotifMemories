@@ -31,7 +31,7 @@ The payment state, camera, and finished collage remain the visual focus. Decorat
 - Ink-on-Paper is the standard text pairing; pastel colors are surfaces, not body text.
 - Guest radii stay 12–16 px with one soft offset shadow.
 - Minimum touch target is 56 px, including portaled dialog controls.
-- Transitions last 160–240 ms; countdown is the only dominant animation.
+- Transitions last 160–240 ms. The capture cue is the only dominant animation: `10…2`, one 2.4-second smile animation, then its static final frame for 0.3 seconds before shutter.
 - `prefers-reduced-motion` removes nonessential motion.
 
 ## Guest screen contract
@@ -46,11 +46,11 @@ Six actual previews appear in a 3×2 grid. Selecting a preview opens an accessib
 
 ### Capture
 
-The existing PreviewStream and CountdownTimer fill the screen. A restrained HUD shows `Photo n of 4`, `Photo n of 6`, or `Photo n of 8`. Processing reads `Making your photo…`.
+The existing PreviewStream and CountdownTimer fill the screen. The backend supplies the 10-second display duration plus cue timing and does not begin capture until the 11.7-second timer completes. A restrained HUD shows `Photo n of 4`, `Photo n of 6`, or `Photo n of 8`. Processing reads `Making your photo…`.
 
 ### Result
 
-Item-presenter mode places the portrait collage at left and Print, QR, Retake, and Done at right. Print and retake are mutually exclusive entitlements. The QR dialog supports polling the private-upload API contract, but runtime upload is intentionally inactive until a real endpoint and server credentials are approved; the unavailable state remains recoverable. Normal gallery browsing remains unchanged.
+Item-presenter mode places the portrait collage at left and Print, QR, Retake, and Done at right. Print and retake are mutually exclusive entitlements. The QR dialog polls the kiosk download endpoint until rclone confirms the public object, then displays a direct forced-download Supabase URL. Normal gallery browsing remains unchanged.
 
 ## Architecture
 

@@ -1,0 +1,11 @@
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+select cron.schedule(
+  'cleanup-booth-media-hourly',
+  '0 * * * *',
+  $$select net.http_post(
+    url := 'https://bisqzjefoapfmxaiehiv.supabase.co/functions/v1/cleanup-booth-media',
+    headers := jsonb_build_object('Authorization', 'Bearer ' || 'd60097bfc29eb38832bf3c274a091e7e4cee7742ad032992580ee2644f5ac41f')
+  );$$
+);

@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Header, HTTPException, Response, status
 
 from ...container import container
-from ...services.kiosk_payment import KioskPaymentRequiredError
+from ...services.kiosk_payment import KioskPaymentRequiredError, KioskResultNotFoundError
 
 router = APIRouter(prefix="/kiosk", tags=["kiosk"])
 
@@ -28,7 +28,10 @@ def kiosk_print(media_id: UUID, action_index: int, x_kiosk_test_grant: str | Non
 
 @router.get("/results/{media_id}/download")
 def kiosk_download(media_id: UUID, response: Response):
-    result = container.kiosk_payment_service.download_status(media_id)
+    try:
+        result = container.kiosk_payment_service.download_status(media_id)
+    except KioskResultNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="result is not part of a kiosk session") from exc
     if result.get("status") in ("queued", "uploading"):
         response.status_code = status.HTTP_202_ACCEPTED
         response.headers["Retry-After"] = "2"

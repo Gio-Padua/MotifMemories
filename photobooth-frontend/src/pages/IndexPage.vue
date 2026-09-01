@@ -178,6 +178,8 @@ function stopRecordingVideo() {
     >
       <CountdownTimer
         :duration="stateStore.jobmodel.duration"
+        :capture-cue-duration="stateStore.jobmodel.capture_cue_duration"
+        :capture-cue-safety="stateStore.jobmodel.capture_cue_safety"
         :message-duration="configurationStore.configuration.uisettings.TAKEPIC_MSG_TIME"
         :message-text="configurationStore.configuration.uisettings.TAKEPIC_MSG_TEXT"
       />

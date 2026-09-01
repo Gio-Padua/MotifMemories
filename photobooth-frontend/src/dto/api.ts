@@ -3764,6 +3764,10 @@ export interface components {
             number_captures_taken: number;
             /** Duration */
             duration: number;
+            /** Capture Cue Duration */
+            capture_cue_duration: number;
+            /** Capture Cue Safety */
+            capture_cue_safety: number;
             /** Present Mediaitem Id */
             present_mediaitem_id: string | null;
             /** Approval Id */

@@ -1,8 +1,11 @@
 # Local environment
 ptbth/
-
+config/
 # Runtime data, customer photos, credentials, and database
 photobooth-data/
+**/rclone.conf
+.pytest_cache/
+.ruff_cache/
 
 # Python-generated files
 **/__pycache__/

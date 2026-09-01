@@ -1,0 +1,4 @@
+project_id = "motif-moments"
+
+[functions.cleanup-booth-media]
+verify_jwt = false

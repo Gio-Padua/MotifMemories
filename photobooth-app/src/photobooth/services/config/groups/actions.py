@@ -42,6 +42,20 @@ class MultiImageJobControl(BaseModel):
         le=20,
         description="Countdown in seconds, used for second and following captures for collages",
     )
+    capture_cue_duration: float = Field(
+        default=0.0,
+        multiple_of=0.1,
+        ge=0,
+        le=10,
+        description="Animated capture cue duration in seconds. Zero keeps the legacy countdown behavior.",
+    )
+    capture_cue_safety: float = Field(
+        default=0.0,
+        multiple_of=0.1,
+        ge=0,
+        le=2,
+        description="Static hold after the capture cue before the shutter starts.",
+    )
 
     ask_approval_each_capture: bool = Field(
         default=False,
@@ -184,7 +198,6 @@ class CollageProcessing(BaseModel):
     merge_definition: list[CollageMergeDefinition] = Field(
         description="How to arrange single images in the collage. Pos_x/Pos_y measure in pixel starting 0/0 at top-left in image. Width/Height in pixels. Aspect ratio is kept always. Predefined image files are used instead a camera capture. File needs to be located in working directory/userdata/*",
     )
-
     @model_validator(mode="after")
     def validate_capture_indexes(self):
         captured = [item for item in self.merge_definition if not item.predefined_image]

@@ -5,7 +5,17 @@ from collections.abc import Generator
 import pytest
 
 from photobooth.services.acquisition import AcquisitionService
-from photobooth.services.config.groups.actions import SingleImageConfigurationSet, SingleImageJobControl, SingleImageProcessing, Trigger
+from photobooth.services.config.groups.actions import (
+    CollageConfigurationSet,
+    CollageProcessing,
+    MultiImageJobControl,
+    SingleImageConfigurationSet,
+    SingleImageJobControl,
+    SingleImageProcessing,
+    Trigger,
+)
+from photobooth.services.config.models.models import CollageMergeDefinition
+from photobooth.services.processor.collage import JobModelCollage
 from photobooth.services.processor.image import JobModelImage
 
 logger = logging.getLogger(name=None)
@@ -117,3 +127,23 @@ def test_jobmodel_start_count_bigger_offset(_acqs: AcquisitionService):
     actual_blocking_time = (end_time - start_time) - expected_blocking_time
 
     assert abs(actual_blocking_time) < (0.1)  # 0.1 is acceptable tolerance for any inaccuracies
+
+
+def test_kiosk_capture_cue_ignores_camera_offset(_acqs: AcquisitionService):
+    jm = JobModelCollage(
+        CollageConfigurationSet(
+            jobcontrol=MultiImageJobControl(countdown_capture=10, capture_cue_duration=2.4, capture_cue_safety=0.3),
+            processing=CollageProcessing(merge_definition=[CollageMergeDefinition()]),
+            trigger=Trigger(),
+        ),
+        _acqs,
+    )
+
+    jm.start_countdown(offset=5)
+
+    assert jm._countdown_timer._duration == pytest.approx(11.7)
+    assert jm.export().duration == 10
+    assert jm.export().capture_cue_duration == 2.4
+    assert jm.export().capture_cue_safety == 0.3
+    assert jm._countdown_timer._timer
+    jm._countdown_timer._timer.cancel()

@@ -140,6 +140,8 @@ def install_config() -> None:
         action["jobcontrol"] = {
             "countdown_capture": 10,
             "countdown_capture_second_following": 10,
+            "capture_cue_duration": 2.4,
+            "capture_cue_safety": 0.3,
             "ask_approval_each_capture": False,
             "approve_autoconfirm_timeout": 15,
             "show_individual_captures_in_gallery": False,

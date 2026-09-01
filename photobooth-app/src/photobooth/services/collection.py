@@ -69,8 +69,6 @@ class MediacollectionService(BaseService):
         # and insert in client db collection so gallery is up to date.
         if item.show_in_gallery:
             sse_service.dispatch_event(SseEventDbInsert(mediaitem=MediaitemPublic.model_validate(item)))
-            if item.media_type == "collage":
-                pluggy_pm.hook.collection_customer_result_added(filepath_local=item.processed, identifier=item.id)
 
         return item.id
 

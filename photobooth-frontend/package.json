@@ -12,7 +12,7 @@
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "generate-types": "openapi-typescript  http://localhost:8000/api/openapi.json --output ./src/dto/api.ts",
     "check-types": "openapi-typescript  http://localhost:8000/api/openapi.json --output ./src/dto/api.ts --check",
-    "test": "node --test src/components/kiosk/kiosk-presets.test.ts",
+    "test": "node --test src/components/countdown-timing.test.mjs src/components/kiosk/kiosk-presets.test.ts",
     "dev": "quasar dev",
     "build": "quasar build",
     "postinstall": "quasar prepare"

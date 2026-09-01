@@ -160,6 +160,41 @@ def test_collection_hooks(sync: Synchronizer):
         assert mock_put.call_count == 3
 
 
+def test_customer_result_upload_uses_exact_public_path():
+    sync = Synchronizer()
+    sync._rclone_client = MagicMock()
+    sync._rclone_client.copyfile_async.return_value = MagicMock(jobid=17)
+    sync._rclone_client.job_status.return_value = MagicMock(finished=True, success=True, error=None)
+    sync._customer_remote = RemoteConfig(
+        enabled=True,
+        sync_scope="customer_results",
+        name="supabase:",
+        subdir="photobooth-testloc/booths/booth-001/results",
+        shareconfig=ShareConfig(
+            enabled=True,
+            use_sharepage=False,
+            manual_public_link=(
+                "https://bisqzjefoapfmxaiehiv.supabase.co/storage/v1/object/public/photobooth-testloc/"
+                "booths/booth-001/results/{identifier}.jpg?download=Motif-Moments-{identifier}.jpg"
+            ),
+        ),
+    )
+    identifier = uuid4()
+
+    sync.collection_customer_result_added(Path("media/processed_full/result.jpg"), identifier)
+    with patch("photobooth.plugins.synchronizer.synchronizer.requests.head", return_value=MagicMock(ok=True)):
+        status = sync.get_customer_result_status(identifier)
+
+    assert sync._rclone_client.copyfile_async.call_args.args[3] == f"photobooth-testloc/booths/booth-001/results/{identifier}.jpg"
+    assert status == {
+        "status": "ready",
+        "urls": [
+            "https://bisqzjefoapfmxaiehiv.supabase.co/storage/v1/object/public/photobooth-testloc/"
+            f"booths/booth-001/results/{identifier}.jpg?download=Motif-Moments-{identifier}.jpg"
+        ],
+    }
+
+
 def test_immediateSnycPipeline_skip_delete_op_when_upload_only_is_enabled():
     remotes = [
         RemoteConfig(enabled=True, description="backup", name="backup:", subdir="archive", copy_only_mode=True, shareconfig=ShareConfig()),

@@ -17,12 +17,12 @@
 
 ## Make the moment tangible
 
-Motif Moments extends [Photobooth-App](https://github.com/photobooth-app/photobooth-app) with a focused guest journey, curated portrait collages, backend-authoritative payment entitlements, one included print, and private-download scaffolding.
+Motif Moments extends [Photobooth-App](https://github.com/photobooth-app/photobooth-app) with a focused guest journey, curated portrait collages, backend-authoritative payment entitlements, one included print, and direct Supabase QR downloads.
 
 The interface combines a warm white canvas with Blush, Butter, and Mint accents. Editorial typography and actual frame previews keep the experience expressive without getting in the way of payment, capture, or delivery.
 
 > [!IMPORTANT]
-> The project is in commissioning mode. Paid operation remains disabled until the bill acceptor is electrically qualified, the default admin password is changed, and camera, printer, disk, and private-cloud checks all pass. Supabase upload is scaffolded but not active.
+> The project is in commissioning mode. Paid operation remains disabled until the bill acceptor is electrically qualified, the default admin password is changed, and camera, printer, disk, and customer-storage checks all pass.
 
 ## Guest journey
 
@@ -31,7 +31,7 @@ Insert the configured price (₱200 default) → choose a frame → confirm → 
 ```
 
 - Accepts configured ₱50, ₱100, and ₱200 notes; exact payment is recommended.
-- Supports uninterrupted 4-, 6-, and 8-photo sessions with a 10-second countdown.
+- Supports uninterrupted 4-, 6-, and 8-photo sessions with `10…2`, a 2.4-second smile cue, and a 0.3-second static hold before shutter.
 - Produces a 1200 × 1800 portrait collage with approximately 4:3 photo windows.
 - Includes one complete retake and one print, enforced by the backend.
 - Keeps final kiosk results locally for seven days.
@@ -56,7 +56,7 @@ flowchart LR
   FRAME --> CAPTURE["Existing capture pipeline"]
   CAPTURE --> RESULT["Final collage"]
   RESULT --> PRINT["One included print"]
-  RESULT --> QR["Private QR download when cloud delivery is enabled"]
+  RESULT --> QR["Direct public QR download"]
   RESULT --> RETAKE["One complete retake"]
 ```
 
@@ -69,8 +69,8 @@ The existing Photobooth-App state machine remains authoritative for camera and c
 | Guest frontend | Vue 3, Quasar, Pinia, Tailwind CSS, shadcn-vue |
 | Booth backend | Photobooth-App, Python, FastAPI, SQLAlchemy, SQLite |
 | Camera and output | Existing Photobooth-App capture, collage, gallery, and print services |
-| Cloud scaffold | Supabase private Storage, S3-compatible rclone configuration, cleanup Edge Function |
-| Delivery contract | Seven-day private signed URLs after confirmed upload |
+| Cloud delivery | Supabase public Storage, S3-compatible rclone upload, cleanup Edge Function |
+| Delivery contract | Direct forced-download URLs after confirmed upload; seven-day deletion |
 
 ## Workspace
 
@@ -78,7 +78,7 @@ The existing Photobooth-App state machine remains authoritative for camera and c
 photobooth/
 ├── photobooth-app/       Python backend and built frontend
 ├── photobooth-frontend/  Vue guest and administration frontend
-├── supabase/             Private bucket, cleanup function, and Cron example
+├── supabase/             Public bucket, cleanup function, and Cron example
 ├── config/               Placeholder-only rclone and synchronizer examples
 ├── PRODUCT.md            Product behavior and boundaries
 ├── DESIGN.md             Brand and interface system
@@ -110,7 +110,7 @@ The production build is written into `photobooth-app/src/web/frontend/`.
 
 ## Commissioning
 
-Start with [KIOSK_SETUP.md](KIOSK_SETUP.md). It covers operator access, test sessions, payment policy, Supabase scaffolding, private-media retention, and the TB74 electrical qualification gate.
+Start with [KIOSK_SETUP.md](KIOSK_SETUP.md). It covers operator access, test sessions, payment policy, Supabase delivery, public-media retention, and the TB74 electrical qualification gate.
 
 Never connect a bill validator directly to PC USB or low-voltage GPIO. Machine-learning banknote recognition may be advisory, but it must never grant credit.
 

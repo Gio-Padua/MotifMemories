@@ -140,7 +140,11 @@ class PluginMediacollectionSpec:
 
     @hookspec
     def collection_customer_result_added(self, filepath_local: Path, identifier: UUID) -> None:
-        """Queue a visible final collage for private customer delivery."""
+        """Queue a completed kiosk collage for customer delivery."""
+
+    @hookspec
+    def collection_customer_result_deleted(self, identifier: UUID) -> None:
+        """Delete a kiosk result from customer delivery storage."""
 
     @hookspec
     def get_customer_result_status(self, identifier: UUID) -> dict | None:
@@ -148,7 +152,7 @@ class PluginMediacollectionSpec:
 
     @hookspec
     def kiosk_storage_health(self) -> bool:
-        """Return whether private customer storage was checked and is writable."""
+        """Return whether customer storage was checked and is writable."""
 
 
 pm.add_hookspecs(PluginManagementSpec)

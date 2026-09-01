@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..appconfig import appconfig
 from ..database.database import engine
-from ..database.models import KioskPaymentSession, Mediaitem
+from ..database.models import KioskPaymentSession
 from ..plugins import pm as pluggy_pm
 from ..utils.printer import PrinterStatus, get_printer_status
 from .acquisition import AcquisitionService
@@ -27,6 +27,10 @@ ACTIVE_STATES = ("collecting", "paid", "capturing", "presenting")
 
 
 class KioskPaymentRequiredError(PermissionError):
+    pass
+
+
+class KioskResultNotFoundError(FileNotFoundError):
     pass
 
 
@@ -147,6 +151,10 @@ class KioskPaymentService(BaseService):
             old_session_ids = [session.id for session in old_sessions]
             kiosk_result_ids = {value for session in old_sessions for value in session.result_ids}
         for value in kiosk_result_ids:
+            try:
+                pluggy_pm.hook.collection_customer_result_deleted(identifier=UUID(value))
+            except Exception as exc:
+                logger.warning(f"cloud retention cleanup failed for {value}: {exc}")
             try:
                 self._collection.delete_item(self._collection.get_item(UUID(value)), delete_to_recycle_dir=False)
             except (FileNotFoundError, ValueError):
@@ -269,6 +277,7 @@ class KioskPaymentService(BaseService):
         self.emit()
 
     def complete_capture(self, media_id: UUID):
+        should_upload = False
         with self._lock, Session(engine) as db:
             item = self._active(db)
             if not item or item.state != "capturing":
@@ -281,6 +290,14 @@ class KioskPaymentService(BaseService):
             item.reserved_retake = False
             item.state = "presenting"
             db.commit()
+            should_upload = True
+        if should_upload:
+            try:
+                mediaitem = self._collection.get_item(media_id)
+                if mediaitem.media_type == "collage" and mediaitem.processed.suffix.lower() in (".jpg", ".jpeg"):
+                    pluggy_pm.hook.collection_customer_result_added(filepath_local=mediaitem.processed, identifier=media_id)
+            except Exception as exc:
+                logger.error(f"could not queue kiosk result {media_id} for customer delivery: {exc}")
         self.emit()
 
     def print_result(self, media_id: UUID, action_index: int, test_grant: str | None = None):
@@ -322,10 +339,25 @@ class KioskPaymentService(BaseService):
                 db.commit()
         self.emit()
 
-    @staticmethod
-    def download_status(media_id: UUID) -> dict:
+    def download_status(self, media_id: UUID) -> dict:
+        with Session(engine) as db:
+            # ponytail: one-terminal seven-day ledger; normalize result IDs only if lookup volume grows.
+            recorded = any(str(media_id) in item.result_ids for item in db.scalars(select(KioskPaymentSession)).all())
+        if not recorded:
+            raise KioskResultNotFoundError(str(media_id))
+
         results = pluggy_pm.hook.get_customer_result_status(identifier=media_id)
         for result in results:
+            if result:
+                return result
+
+        try:
+            mediaitem = self._collection.get_item(media_id)
+            pluggy_pm.hook.collection_customer_result_added(filepath_local=mediaitem.processed, identifier=media_id)
+        except Exception as exc:
+            return {"status": "failed", "error": str(exc)}
+
+        for result in pluggy_pm.hook.get_customer_result_status(identifier=media_id):
             if result:
                 return result
         return {"status": "failed", "error": "customer storage is not configured"}

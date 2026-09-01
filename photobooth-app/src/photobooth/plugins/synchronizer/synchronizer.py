@@ -1,9 +1,13 @@
 import logging
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from importlib import resources
 from pathlib import Path
+from threading import Lock
 from urllib.parse import quote
 from uuid import UUID
 
+import requests
 from rclone_api.api import RcloneApi
 
 from ...models.genericstats import GenericStats, SubList, SubStats
@@ -19,6 +23,15 @@ from .utils import get_corresponding_remote_file
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class CustomerResultTransfer:
+    jobid: int | None
+    remote: RemoteConfig
+    destination: str
+    url: str
+    error: str | None = None
+
+
 class Synchronizer(BasePlugin[SynchronizerConfig]):
     def __init__(self):
         super().__init__()
@@ -29,6 +42,10 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
         self._immediate_pipeline: ThreadedImmediateSyncPipeline | None = None
         self._regular_sync: ThreadedRegularSync | None = None
         self._shareondemand: ShareOnDemandService | None = None
+        self._customer_remote: RemoteConfig | None = None
+        self._customer_results: dict[UUID, CustomerResultTransfer] = {}
+        self._customer_lock = Lock()
+        self._storage_health: tuple[datetime, bool] | None = None
 
     def __str__(self):
         return "Sync and Share Online"
@@ -46,6 +63,10 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
         _immediate_sync_remotes = [x for x in self._config.remotes if x.enable_immediate_sync and x.enabled and x.sync_scope == "archive"]
         _full_sync_remotes = [x for x in self._config.remotes if x.enable_regular_sync and x.enabled and x.sync_scope == "archive"]
         _copy_sharepage_to_remotes = [x for x in self._config.remotes if x.enabled and x.enable_sharepage_sync and x.enabled]
+        customer_remotes = [x for x in self._config.remotes if x.enabled and x.enable_immediate_sync and x.sync_scope == "customer_results"]
+        self._customer_remote = customer_remotes[0] if customer_remotes else None
+        if len(customer_remotes) > 1:
+            logger.warning("only the first customer_results remote is used")
 
         self._rclone_client = RcloneApi(
             bind_gui=_bind_gui,
@@ -306,3 +327,85 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
 
         for file in files:
             self._immediate_pipeline.submit(TaskDelete(file), priority=19)
+
+    @hookimpl
+    def collection_customer_result_added(self, filepath_local: Path, identifier: UUID) -> None:
+        if not self._rclone_client or not self._customer_remote:
+            return
+        if filepath_local.suffix.lower() not in (".jpg", ".jpeg"):
+            return
+        with self._customer_lock:
+            existing = self._customer_results.get(identifier)
+            if existing and not existing.error:
+                return
+            remote = self._customer_remote
+            destination = Path(remote.subdir, f"{identifier}.jpg").as_posix()
+            url = (remote.shareconfig.manual_public_link or "").format(filename=f"{identifier}.jpg", identifier=str(identifier))
+            try:
+                job = self._rclone_client.copyfile_async(
+                    filepath_local.parent.absolute().as_posix(), filepath_local.name, remote.name, destination
+                )
+                self._customer_results[identifier] = CustomerResultTransfer(job.jobid, remote, destination, url)
+            except Exception as exc:
+                self._customer_results[identifier] = CustomerResultTransfer(None, remote, destination, url, str(exc))
+
+    @hookimpl
+    def get_customer_result_status(self, identifier: UUID) -> dict | None:
+        if not self._rclone_client:
+            return None
+        with self._customer_lock:
+            transfer = self._customer_results.get(identifier)
+        if not transfer:
+            return None
+        if transfer.error:
+            return {"status": "failed", "error": transfer.error}
+        if not transfer.jobid:
+            return {"status": "queued"}
+        try:
+            job = self._rclone_client.job_status(transfer.jobid)
+            if not job.finished:
+                return {"status": "uploading"}
+            if not job.success:
+                return {"status": "failed", "error": job.error or "upload failed"}
+            if not transfer.url:
+                return {"status": "failed", "error": "public customer-result URL is not configured"}
+            response = requests.head(transfer.url.split("?", 1)[0], timeout=5)
+            if not response.ok:
+                return {"status": "failed", "error": f"public object check returned HTTP {response.status_code}"}
+            return {"status": "ready", "urls": [transfer.url]}
+        except Exception as exc:
+            return {"status": "failed", "error": str(exc)}
+
+    @hookimpl
+    def collection_customer_result_deleted(self, identifier: UUID) -> None:
+        if not self._rclone_client or not self._customer_remote:
+            return
+        destination = Path(self._customer_remote.subdir, f"{identifier}.jpg").as_posix()
+        try:
+            self._rclone_client.deletefile(self._customer_remote.name, destination)
+        finally:
+            with self._customer_lock:
+                self._customer_results.pop(identifier, None)
+
+    @hookimpl
+    def kiosk_storage_health(self) -> bool:
+        now = datetime.now(UTC)
+        if self._storage_health and now - self._storage_health[0] < timedelta(minutes=5):
+            return self._storage_health[1]
+        healthy = False
+        if self._rclone_client and self._customer_remote:
+            local = Path("tmp/kiosk-storage-health.txt")
+            remote_file = Path(self._customer_remote.subdir, ".healthcheck").as_posix()
+            try:
+                local.parent.mkdir(parents=True, exist_ok=True)
+                local.write_text("ok", encoding="ascii")
+                self._rclone_client.copyfile(local.parent.absolute().as_posix(), local.name, self._customer_remote.name, remote_file)
+                entries = self._rclone_client.ls(self._customer_remote.name, self._customer_remote.subdir)
+                healthy = any(entry.Name == ".healthcheck" for entry in entries)
+                self._rclone_client.deletefile(self._customer_remote.name, remote_file)
+            except Exception as exc:
+                logger.warning(f"customer storage health check failed: {exc}")
+            finally:
+                local.unlink(missing_ok=True)
+        self._storage_health = (now, healthy)
+        return healthy

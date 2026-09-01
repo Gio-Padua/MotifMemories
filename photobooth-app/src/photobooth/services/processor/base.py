@@ -58,6 +58,7 @@ class JobModelBase(ABC, Generic[T]):
 
         # job model timer
         self._countdown_timer: CountdownTimer = CountdownTimer()
+        self._countdown_display_duration = 0.0
 
     @staticmethod
     def _get_number_of_captures_from_merge_definition(merge_definition: list[CollageMergeDefinition] | list[AnimationMergeDefinition]) -> int:
@@ -85,7 +86,9 @@ class JobModelBase(ABC, Generic[T]):
             total_captures_to_take=self.total_captures_to_take,
             remaining_captures_to_take=self.remaining_captures_to_take,
             number_captures_taken=self.captures_taken,
-            duration=self._countdown_timer._duration + appconfig.cameras.countdown_camera_capture_offset if self._countdown_timer._duration else 0,
+            duration=self._countdown_display_duration,
+            capture_cue_duration=getattr(self._configuration_set.jobcontrol, "capture_cue_duration", 0),
+            capture_cue_safety=getattr(self._configuration_set.jobcontrol, "capture_cue_safety", 0),
             present_mediaitem_id=str(self._present_mediaitem_id) if self._present_mediaitem_id else None,
             approval_id=str(self._approval_id) if self._approval_id else None,
             frame_overlay=self.frame_overlay,
@@ -197,11 +200,15 @@ class JobModelBase(ABC, Generic[T]):
         else:
             raise AssertionError("jobcontrol is neither SingleImageJobControl nor MultiImageJobControl!")
 
-        # if offset is less than duration, take it, else use duration for offset which results actually in 0
-        # countdown because delay of camera is longer than desired countdown
-        _offset = offset if (offset <= duration_user) else duration_user
+        self._countdown_display_duration = duration_user
+        cue_duration = getattr(self._configuration_set.jobcontrol, "capture_cue_duration", 0)
+        cue_safety = getattr(self._configuration_set.jobcontrol, "capture_cue_safety", 0)
+        if cue_duration:
+            duration = max(duration_user - 1, 0) + cue_duration + cue_safety
+        else:
+            duration = duration_user - min(offset, duration_user)
 
-        self._countdown_timer.start(duration=(duration_user - _offset))
+        self._countdown_timer.start(duration=duration)
 
     def wait_countdown_finished(self):
         self._countdown_timer.wait_countdown_finished()

@@ -23,6 +23,8 @@ class UiJobModel:
     remaining_captures_to_take: int
     number_captures_taken: int
     duration: float
+    capture_cue_duration: float
+    capture_cue_safety: float
     present_mediaitem_id: str | None
     approval_id: str | None
     captures_definition: UiCaptureDefinition | None
