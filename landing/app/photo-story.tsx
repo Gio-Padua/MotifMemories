@@ -23,6 +23,7 @@ export default function PhotoStory() {
 
   useEffect(() => {
     const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    const compact = matchMedia('(max-width: 700px)');
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
     let idle = 0;
     let timer = 0;
@@ -31,20 +32,21 @@ export default function PhotoStory() {
     let scheduled = false;
     const hero = document.getElementById('hero-image') as HTMLImageElement | null;
     const start = () => {
-      if (cancelled || scheduled || !near || window.scrollY < 40 || motion.matches || connection?.saveData || (hero && !hero.complete)) return;
+      if (cancelled || scheduled || !near || window.scrollY < 40 || motion.matches || compact.matches || connection?.saveData || (hero && !hero.complete)) return;
       scheduled = true;
-      const activate = () => { if (!cancelled && !motion.matches) setEnabled(true); };
+      const activate = () => { if (!cancelled && !motion.matches && !compact.matches) setEnabled(true); };
       if (typeof window.requestIdleCallback === 'function') idle = window.requestIdleCallback(activate, { timeout: 1800 });
       else timer = window.setTimeout(activate, 250);
     };
     const observer = new IntersectionObserver(([entry]) => { near = entry.isIntersecting; start(); }, { rootMargin: '100px' });
     if (section.current) observer.observe(section.current);
-    const preference = () => { if (motion.matches) { setEnabled(false); setReady(false); scheduled = false; } else start(); };
+    const preference = () => { if (motion.matches || compact.matches) { setEnabled(false); setReady(false); scheduled = false; } else start(); };
     hero?.addEventListener('load', start);
     hero?.addEventListener('error', start);
     window.addEventListener('scroll', start, { passive: true });
     motion.addEventListener('change', preference);
-    return () => { cancelled = true; observer.disconnect(); hero?.removeEventListener('load', start); hero?.removeEventListener('error', start); window.removeEventListener('scroll', start); motion.removeEventListener('change', preference); if (idle) window.cancelIdleCallback(idle); clearTimeout(timer); };
+    compact.addEventListener('change', preference);
+    return () => { cancelled = true; observer.disconnect(); hero?.removeEventListener('load', start); hero?.removeEventListener('error', start); window.removeEventListener('scroll', start); motion.removeEventListener('change', preference); compact.removeEventListener('change', preference); if (idle) window.cancelIdleCallback(idle); clearTimeout(timer); };
   }, []);
 
   const canvasFailure = () => { setReady(false); setFailed(true); };
@@ -69,6 +71,9 @@ export default function PhotoStory() {
       </section>
       <section id="frames" className="story-step frames-step" aria-labelledby="frames-title">
         <h2 id="frames-title">Find your<br/><span className="accent-word">kind of frame.</span></h2><p>Six little ways to tell your story.<br/>Choose one to see how your moments fit.</p>
+        <div className="mobile-frame-preview">
+          <Image key={selected} src={`/images/${selected}-mobile.webp`} alt={`${frame.title}: ${frame.count} illustrative sample photos in the actual booth layout`} width={683} height={1024} sizes="55vw"/>
+        </div>
         <fieldset className="frame-options"><legend className="sr-only">Choose a sample frame</legend>{frames.map(item => <label className="frame-option" key={item.id} style={{ '--frame-accent': item.color } as React.CSSProperties}><input type="radio" name="frame" value={item.id} checked={selected === item.id} onChange={() => { setSelected(item.id); setReady(false); }}/><Image src={`/images/${item.id}-thumb.webp`} alt="" width={160} height={240} sizes="48px"/><span><strong>{item.title}</strong><small>{item.count} photos{item.id === 'four-strip-twin' ? ' · matching strips' : ''}</small></span><span className="selection-dot" aria-hidden="true"/></label>)}</fieldset>
         <p className="frame-description" aria-live="polite"><strong>{frame.title}.</strong> {frame.description}</p>
         <noscript><p>Each thumbnail shows its frame. The interactive preview needs JavaScript; all six layouts are available at the booth.</p></noscript>

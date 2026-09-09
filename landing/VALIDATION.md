@@ -1,6 +1,6 @@
 # Landing page validation
 
-Verified 9 September 2026 against the local **production build**, served by `pnpm start` at `http://localhost:3000`.
+Verified 10 September 2026 against a local **production build**.
 
 ## Production checks
 
@@ -11,7 +11,7 @@ Verified 9 September 2026 against the local **production build**, served by `pnp
 | `pnpm typecheck` | Pass |
 | `pnpm build` | Pass: statically prerendered home page |
 | Visual finish review | **Pass — no material visual, accessibility, or product-truth findings** |
-| Impeccable mechanical detector | No findings |
+| Impeccable mechanical detector | Advisory token-ramp findings only; no blocking findings |
 
 ## Cold mobile Lighthouse results
 
@@ -33,21 +33,21 @@ The original full-font implementation scored 88 with approximately 555 KB transf
 ## Image and 3D budgets
 
 - Mobile hero source: **26,994 B**; desktop source: **67,250 B**. Actual responsive hero requests are further sized by Next.js.
-- First-scene additional transfer observed in the browser: **305,956 B mobile**, **397,862 B desktop**, including other assets entering the viewport. Both are below the 1.5 MB deferred budget.
+- First-scene additional transfer observed on desktop: **483,400 B**, including other assets entering the viewport. It remains below the 1.5 MB deferred budget. Mobile skips the 3D runtime.
 - No canvas or 3D enhancement initializes on the initial unscrolled load at 1440, 768, 390, or 320 px.
-- No additional WebGL draw calls during the measured 800 ms idle window after settling, on desktop or mobile.
+- No additional WebGL draw calls during the measured 800 ms desktop idle window after settling.
 - No long tasks over 50 ms were observed during the tested forward/reverse scroll sequence. This is a bounded headless lab check, not a guarantee for every physical device.
 
 ## Browser scenarios
 
 - No horizontal overflow at 1440×1000, 768×1024, 390×844, or 320×740; no overflow at 200% CSS zoom.
-- All six choices update the selected frame and become ready in the single canvas, on desktop and mobile.
+- All six choices update the selected frame. Desktop uses the single deferred canvas; mobile uses a static optimized preview and keeps the story in normal flow.
 - Forward and reverse scrolling work; native scrolling remains available.
 - Reduced motion, Save-Data, unavailable WebGL, failed texture loading, and WebGL context loss preserve the static poster.
 - Without JavaScript, content, frame thumbnails, anchor navigation, and native FAQs remain available; the interactive-preview limitation is explained.
 - Keyboard skip link, radio selection with arrow keys, and FAQ expansion with Space are checked.
 - No uncaught application errors in the normal desktop/mobile flows.
-- Full desktop, tablet, mobile, frame-explorer, and social-image layouts were visually inspected. Generated imagery is labeled illustrative; business details are not invented.
+- Full desktop, tablet, mobile, frame-explorer, and social-image layouts were visually inspected. The finished desktop collage retains every portrait after forward and reverse scrolling, and the mobile story no longer sticks to half the screen. Generated imagery is labeled illustrative; business details are not invented.
 
 ## Reproduce and handoff
 

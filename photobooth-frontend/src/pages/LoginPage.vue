@@ -4,6 +4,7 @@
       <q-btn flat color="grey" icon="sym_o_arrow_back_ios_new" @click="router.go(-1)" />
       <q-form ref="form" class="q-gutter-md" @submit="submit">
         <q-card-section class="text-center">
+          <img src="/icons/mm-logo-xl.webp" alt="Motif Moments" class="q-mx-auto q-mb-md" style="width: 96px; height: 96px; object-fit: contain" />
           <div class="text-h5 text-weight-bold">{{ $t('Sign in') }}</div>
           <div class="">{{ $t('Sign in below to access the admin dashboard.') }}</div>
         </q-card-section>

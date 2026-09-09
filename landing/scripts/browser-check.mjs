@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const output = new URL('../.impeccable/review/', import.meta.url);
+const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
 await mkdir(output, { recursive: true });
 const report = { layouts: [], interactions: [], errors: [] };
 try {
@@ -11,13 +12,13 @@ try {
     await context.addInitScript(() => { window.__longTasks = []; new PerformanceObserver(list => window.__longTasks.push(...list.getEntries().map(e => ({ start: e.startTime, duration: e.duration })))).observe({ type: 'longtask', buffered: true }); });
     const page = await context.newPage();
     page.on('pageerror', error => report.errors.push({ width, error: error.message }));
-    await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
     await page.screenshot({ path: new URL(`${name}.png`, output).pathname.replace(/^\/(\w:)/, '$1'), fullPage: true });
     const initial = await page.evaluate(() => ({ overflow: document.documentElement.scrollWidth > innerWidth, canvas: !!document.querySelector('canvas'), resources: performance.getEntriesByType('resource').map(e => ({ name: e.name, transfer: e.transferSize, encoded: e.encodedBodySize })), hero: document.getElementById('hero-image').getBoundingClientRect().toJSON() }));
     assert.equal(initial.overflow, false, `${width}px overflows`);
     assert.equal(initial.canvas, false, `${width}px should defer 3D on initial load`);
     report.layouts.push({ width, ...initial });
-    if (width === 1440 || width === 390) {
+    if (width === 1440) {
       await page.getByRole('link', { name: 'Explore the frames', exact: true }).click();
       await page.locator('.canvas-ready').waitFor({ timeout: 20000 });
       const firstSceneBytes = await page.evaluate(() => performance.getEntriesByType('resource').reduce((sum, entry) => sum + entry.transferSize, 0));
@@ -39,6 +40,7 @@ try {
       const scrollStart = await page.evaluate(() => performance.now());
       await page.locator('.keep-step').scrollIntoViewIfNeeded();
       await page.waitForTimeout(300);
+      await page.screenshot({ path: new URL('desktop-keepsake.png', output).pathname.replace(/^\/(\w:)/, '$1') });
       await page.locator('#experience-title').scrollIntoViewIfNeeded();
       await page.waitForTimeout(500);
       const scrollLongTasks = await page.evaluate(start => window.__longTasks.filter(e => e.start >= start), scrollStart);
@@ -47,20 +49,33 @@ try {
       await page.waitForFunction(() => !document.querySelector('.story-poster').classList.contains('poster-hidden'));
       report.interactions.push({ width, sixFrames: 'pass', idleDraws: after - before, firstSceneAdditionalBytes: firstSceneBytes - initial.resources.reduce((sum, e) => sum + e.transfer, 0), scrollLongTasks, reverseScroll: 'pass', contextLossFallback: 'pass' });
     }
+    if (width === 390) {
+      await page.getByRole('link', { name: 'Explore the frames', exact: true }).click();
+      await page.locator('.mobile-frame-preview').waitFor();
+      for (const id of ['butter-grid', 'mint-editorial', 'lavender-scrapbook', 'mint-six-grid', 'lavender-eight-grid', 'four-strip-twin']) {
+        await page.locator(`input[value="${id}"]`).check();
+        await page.locator(`.mobile-frame-preview img[src*="${id}-mobile"]`).waitFor();
+      }
+      assert.equal(await page.locator('canvas').count(), 0, 'Mobile should use the static frame preview');
+      assert.equal(await page.locator('.story-visual-column').evaluate(element => getComputedStyle(element).position), 'relative');
+      report.interactions.push({ width, sixFrames: 'pass', mobileStaticPreview: 'pass', mobileSticky: 'removed' });
+      await page.screenshot({ path: new URL('mobile-frames.png', output).pathname.replace(/^\/(\w:)/, '$1') });
+    }
     // A complete screenshot must first bring lazy images into view.
     for (const selector of ['.frames-step', '.moment-photos', '.faq', '.closing']) await page.locator(selector).scrollIntoViewIfNeeded();
-    await page.waitForFunction(() => Array.from(document.querySelectorAll('img')).every(img => img.complete));
+    await page.waitForFunction(() => Array.from(document.querySelectorAll('img')).filter(img => img.getClientRects().length).every(img => img.complete));
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await page.screenshot({ path: new URL(`${name}.png`, output).pathname.replace(/^\/(\w:)/, '$1'), fullPage: true });
     await context.close();
   }
   for (const mode of ['reduced-motion', 'no-javascript', 'no-webgl', 'save-data', 'failed-texture']) {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: mode === 'reduced-motion' ? 'reduce' : 'no-preference', javaScriptEnabled: mode !== 'no-javascript' });
+    const desktopFailure = mode === 'no-webgl' || mode === 'failed-texture';
+    const context = await browser.newContext({ viewport: desktopFailure ? { width: 1440, height: 1000 } : { width: 390, height: 844 }, reducedMotion: mode === 'reduced-motion' ? 'reduce' : 'no-preference', javaScriptEnabled: mode !== 'no-javascript' });
     if (mode === 'no-webgl') await context.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (kind, ...args) { return String(kind).includes('webgl') ? null : original.call(this, kind, ...args); }; });
     if (mode === 'save-data') await context.addInitScript(() => Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true }));
     const page = await context.newPage();
-    if (mode === 'failed-texture') await page.route('**/images/*-mobile.webp', route => route.abort());
-    await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
+    if (mode === 'failed-texture') await page.route('**/images/*-desktop.webp', route => route.abort());
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
     await page.locator('#frames').scrollIntoViewIfNeeded();
     await page.waitForTimeout(2200);
     assert.equal(await page.locator('.poster-hidden').count(), 0, `${mode} should show static poster`);
@@ -71,7 +86,7 @@ try {
     await context.close();
   }
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-  await page.goto('http://localhost:3000');
+  await page.goto(baseUrl);
   await page.keyboard.press('Tab');
   assert.equal(await page.locator(':focus').textContent(), 'Skip to content');
   await page.evaluate(() => { document.documentElement.style.zoom = '2'; });

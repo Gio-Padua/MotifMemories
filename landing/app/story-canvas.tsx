@@ -26,29 +26,31 @@ function Scene({ selected, section, onReady, onFailure }: Props) {
     let cancelled = false;
     let dispose: (() => void) | undefined;
     const frame = frames.find(f => f.id === selected)!;
-    const size = matchMedia('(max-width: 700px)').matches ? 'mobile' : 'desktop';
-    new TextureLoader().load(`/images/${selected}-${size}.webp`, texture => {
-      if (cancelled) { texture.dispose(); return; }
-      texture.colorSpace = SRGBColorSpace;
-      texture.anisotropy = Math.min(4, gl.capabilities.getMaxAnisotropy());
+    const loader = new TextureLoader();
+    Promise.all([
+      loader.loadAsync(`/images/${selected}-desktop.webp`),
+      ...Array.from({ length: frame.count }, (_, capture) => loader.loadAsync(`/images/portrait-${capture + 1}.webp`)),
+    ]).then(([texture, ...portraitTextures]) => {
+      if (cancelled) { [texture, ...portraitTextures].forEach(item => item.dispose()); return; }
+      for (const item of [texture, ...portraitTextures]) {
+        item.colorSpace = SRGBColorSpace;
+        item.anisotropy = Math.min(4, gl.capabilities.getMaxAnisotropy());
+      }
       const geometry = new PlaneGeometry(1, 1);
       const box = new BoxGeometry(2.4, 3.6, 0.018);
-      const textures: Texture[] = [texture];
+      const textures: Texture[] = [texture, ...portraitTextures];
       const portraits = frame.placements.map(([x, y, w, h, angle, capture]: number[], i: number) => {
-        const crop = texture.clone();
-        crop.repeat.set(w / 1200, h / 1800);
-        crop.offset.set(x / 1200, 1 - (y + h) / 1800);
-        crop.needsUpdate = true;
-        textures.push(crop);
-        const mesh = new Mesh(geometry, new MeshBasicMaterial({ map: crop, transparent: true }));
+        const mesh = new Mesh(geometry, new MeshBasicMaterial({ map: portraitTextures[capture] }));
         mesh.scale.set(w / 500, h / 500, 1);
-        mesh.userData = { x: (x + w / 2 - 600) / 500, y: (900 - y - h / 2) / 500, angle: angle * Math.PI / 180, capture, i };
+        mesh.userData = { x: (x + w / 2 - 600) / 500, y: (900 - y - h / 2) / 500, angle: angle * Math.PI / 180, i };
         return mesh;
       });
-      const print = new Mesh(geometry, new MeshBasicMaterial({ map: texture, transparent: true }));
+      const print = new Mesh(geometry, new MeshBasicMaterial({ map: texture }));
       print.scale.set(2.4, 3.6, 1);
       print.position.z = 0.025;
-      const back = new Mesh(box, new MeshBasicMaterial({ color: '#fffdfa', transparent: true }));
+      print.visible = false;
+      const back = new Mesh(box, new MeshBasicMaterial({ color: '#fffdfa' }));
+      back.visible = false;
       dispose = () => { geometry.dispose(); box.dispose(); [...portraits, print, back].forEach(mesh => (mesh.material as MeshBasicMaterial).dispose()); textures.forEach(t => t.dispose()); };
       announced.current = false;
       current.current = -1;
@@ -56,7 +58,7 @@ function Scene({ selected, section, onReady, onFailure }: Props) {
       assetRef.current = loaded;
       setAssets(loaded);
       invalidate();
-    }, undefined, () => { if (!cancelled) callbacks.current.onFailure(); });
+    }).catch(() => { if (!cancelled) callbacks.current.onFailure(); });
     return () => { cancelled = true; assetRef.current = null; dispose?.(); };
   }, [selected, gl, invalidate]);
 
@@ -98,15 +100,15 @@ function Scene({ selected, section, onReady, onFailure }: Props) {
     const { assemble, keep } = storyStage(current.current);
     root.current.rotation.set(pointer.current.y + keep * .08, pointer.current.x + keep * -.24, -.08 + keep * .19);
     root.current.position.y = keep * .08;
-    const reveal = clamp((assemble - .76) / .24);
-    (assets.print.material as MeshBasicMaterial).opacity = reveal;
-    (assets.back.material as MeshBasicMaterial).opacity = reveal;
+    const assembled = assemble >= .9;
+    assets.print.visible = assembled;
+    assets.back.visible = assembled;
     assets.portraits.forEach(mesh => {
       const { x, y, angle, i } = mesh.userData;
       const spread = 1 - assemble;
       mesh.position.set(x + Math.sin(i * 2.7) * .75 * spread, y + Math.cos(i * 1.9) * .28 * spread, .06 + spread * (i % 3) * .16);
       mesh.rotation.z = angle + Math.sin(i * 2.1) * .22 * spread;
-      (mesh.material as MeshBasicMaterial).opacity = 1 - reveal;
+      mesh.visible = !assembled;
     });
     // Announce after this frame has actually painted, keeping the poster during initialization.
     if (!announced.current) { announced.current = true; requestAnimationFrame(() => callbacks.current.onReady()); }

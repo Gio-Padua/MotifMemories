@@ -36,7 +36,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - First view is complete HTML plus one dimensioned, eager, high-priority hero. Use accurate `next/image` sizes; lazy-load remaining imagery.
 - Defer 3D until the hero is loaded and the story is near the viewport; initialize during idle time with a bounded fallback. Keep the poster until the first successful frame.
 - Mobile hero ≤200KB, initial transfer before 3D ≤700KB, deferred runtime plus first-scene textures ≤1.5MB compressed. Measure production output rather than guessing from source sizes.
-- Pixel ratio ≤1 mobile/1.5 desktop; texture long edge ≤1024 mobile/1536 desktop. No real-time shadow maps or postprocessing. Load selected textures on demand.
+- Skip WebGL on screens up to 700px and use the selected optimized collage preview. Above 700px, cap pixel ratio at 1.5 and texture long edges at 1536px. No real-time shadow maps or postprocessing. Load selected textures on demand.
 - Use refs for scroll progress and imperative Three.js objects. Render on demand, stop when idle/offscreen/hidden, and dispose resources/listeners on teardown.
 - Reduced motion, Save-Data, failed textures, and WebGL failure/context loss retain usable static previews. HTML content and frame thumbnails work without JavaScript.
 

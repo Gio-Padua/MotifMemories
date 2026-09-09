@@ -119,11 +119,7 @@ onBeforeUnmount(() => window.clearTimeout(inactivityTimer))
       class="tw:grid tw:h-full tw:grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)] tw:items-center tw:gap-[clamp(2rem,6vw,8rem)] tw:px-[clamp(3rem,8vw,10rem)] tw:py-[clamp(2rem,6vh,5rem)]"
     >
       <div class="tw:max-w-4xl">
-        <div class="tw:mb-8 tw:flex tw:items-center tw:gap-4" aria-hidden="true">
-          <span class="tw:h-3 tw:w-24 tw:bg-[var(--kiosk-blush)]" />
-          <span class="tw:h-3 tw:w-14 tw:bg-[var(--kiosk-butter)]" />
-          <span class="tw:h-3 tw:w-8 tw:bg-[var(--kiosk-mint)]" />
-        </div>
+        <img src="/icons/mm-logo-xl.webp" alt="" class="tw:mb-8 tw:size-[clamp(7rem,11vw,10rem)] tw:object-contain" aria-hidden="true" />
         <h1 class="tw:max-w-[12ch] tw:text-[clamp(4rem,7.4vw,6rem)] tw:font-semibold tw:leading-[0.9] tw:tracking-[-0.04em]">
           {{ t('kiosk.brand.name') }}
         </h1>
@@ -158,7 +154,10 @@ onBeforeUnmount(() => window.clearTimeout(inactivityTimer))
           <p class="tw:mt-3 tw:text-[clamp(1rem,1.4vw,1.45rem)] tw:text-muted-foreground">{{ t('kiosk.frames.description') }}</p>
         </div>
         <div class="tw:flex tw:items-center tw:gap-6">
-          <span class="tw:text-xl tw:font-semibold tw:tracking-[-0.025em]">{{ t('kiosk.brand.name') }}</span>
+          <span class="tw:flex tw:items-center tw:gap-3 tw:text-xl tw:font-semibold tw:tracking-[-0.025em]">
+            <img src="/icons/mm-logo-sm.webp" alt="" class="tw:size-12 tw:object-contain" aria-hidden="true" />
+            {{ t('kiosk.brand.name') }}
+          </span>
           <Button variant="outline" size="lg" class="tw:min-h-14 tw:px-6" @click="resetToAttract">
             <ArrowLeft data-icon="inline-start" aria-hidden="true" />
             {{ t('kiosk.back') }}

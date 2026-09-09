@@ -42,9 +42,12 @@ const checks = computed(() => [
     </button>
 
     <div class="tw:relative tw:max-w-4xl">
-      <div class="tw:mb-8 tw:flex tw:flex-wrap tw:items-baseline tw:gap-x-5 tw:gap-y-1">
-        <p class="tw:text-3xl tw:font-semibold tw:tracking-[-0.03em]">{{ t('kiosk.brand.name') }}</p>
-        <p class="tw:text-lg tw:text-muted-foreground">{{ t('kiosk.brand.tagline') }}</p>
+      <div class="tw:mb-8 tw:flex tw:items-center tw:gap-5">
+        <img src="/icons/mm-logo-sm.webp" alt="" class="tw:size-16 tw:shrink-0 tw:object-contain" aria-hidden="true" />
+        <div>
+          <p class="tw:text-3xl tw:font-semibold tw:tracking-[-0.03em]">{{ t('kiosk.brand.name') }}</p>
+          <p class="tw:text-lg tw:text-muted-foreground">{{ t('kiosk.brand.tagline') }}</p>
+        </div>
       </div>
       <div class="tw:mb-8 tw:flex tw:gap-4" aria-hidden="true">
         <span class="tw:h-3 tw:w-24 tw:bg-[var(--kiosk-blush)]" /><span class="tw:h-3 tw:w-14 tw:bg-[var(--kiosk-butter)]" /><span

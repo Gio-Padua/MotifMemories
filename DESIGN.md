@@ -9,7 +9,7 @@ Motif Moments is an original Korean self-photo-studio experience built from edit
 - Product name: **Motif Moments**.
 - Tagline: **Make it a motif. Keep the memory.**
 - Use title case for the product name and sentence case for the tagline.
-- The name acts as a restrained editorial wordmark in Inter; it does not need a separate logo treatment for the kiosk commissioning phase.
+- The approved Motif Moments mark is the rounded black double-M symbol with its small blush accent. Use the large mark on attract or sign-in surfaces and the small mark beside the Inter wordmark in compact headers. Keep the symbol's transparent background and proportions intact.
 - Guest states remain task-first: brand language supports payment, frame choice, capture, and delivery without replacing actionable status copy.
 
 The payment state, camera, and finished collage remain the visual focus. Decoration never competes with money, countdown, capture, or the primary action.

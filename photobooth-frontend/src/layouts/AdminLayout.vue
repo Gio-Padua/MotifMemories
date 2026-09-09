@@ -61,9 +61,9 @@
         </q-toolbar-title>
 
         <div>
-          <a href="https://photobooth-app.org/" target="_new" class="q-mr-lg">
-            <img src="icons/logo-notext-white-transparent.png" style="max-height: 40px" />
-          </a>
+          <router-link to="/" aria-label="Motif Moments home" class="q-mr-lg inline-flex rounded-borders bg-white q-pa-xs">
+            <img src="/icons/mm-logo-sm.webp" alt="" style="width: 40px; height: 40px; object-fit: contain" />
+          </router-link>
         </div>
 
         <div>

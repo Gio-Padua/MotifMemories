@@ -8,7 +8,7 @@ export default function Home() {
   return <>
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="site-header wrap">
-      <a href="#" className="wordmark" aria-label="Motif Moments home"><span className="brand-mark" aria-hidden="true"><i/><i/><i/><i/></span>Motif Moments</a>
+      <a href="#" className="wordmark" aria-label="Motif Moments home"><Image className="brand-logo" src="/images/mm-logo-sm.png" alt="" width={40} height={40} sizes="40px"/>Motif Moments</a>
       <nav aria-label="Main navigation"><a href="#experience">The experience</a><a href="#questions">Good to know</a><a className="nav-cta" href="#frames">Find your frame <Arrow/></a></nav>
     </header>
     <main id="main">
@@ -48,8 +48,8 @@ export default function Home() {
           ].map(([question, answer]) => <details key={question}><summary>{question}<span aria-hidden="true" className="plus"/></summary><p>{answer}</p></details>)}
         </div>
       </section>
-      <section className="closing"><Flower/><h2>Your next little<br/>memory starts here.</h2><a className="button" href="#frames">Find your favourite frame <Arrow/></a><p>Make it a motif. Keep the memory.</p></section>
+      <section className="closing"><Image className="closing-logo" src="/images/mm-logo-xl.png" alt="" width={160} height={160} sizes="(max-width: 700px) 88px, 116px"/><h2>Your next little<br/>memory starts here.</h2><a className="button" href="#frames">Find your favourite frame <Arrow/></a><p>Make it a motif. Keep the memory.</p></section>
     </main>
-    <footer className="site-footer wrap"><a href="#" className="wordmark">Motif Moments</a><span>Little moments. Lasting keepsakes.</span><a href="#main">Back to top <span aria-hidden="true">↑</span></a></footer>
+    <footer className="site-footer wrap"><a href="#" className="wordmark" aria-label="Motif Moments home"><Image className="brand-logo" src="/images/mm-logo-sm.png" alt="" width={40} height={40} sizes="40px"/>Motif Moments</a><span>Little moments. Lasting keepsakes.</span><a href="#main">Back to top <span aria-hidden="true">↑</span></a></footer>
   </>;
 }
