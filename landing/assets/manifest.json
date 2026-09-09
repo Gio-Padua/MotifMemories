@@ -1,0 +1,48 @@
+{
+  "tool": "Built-in image_gen",
+  "date": "2026-09-09",
+  "purpose": "AI-generated illustrative studio samples, not real customers or an actual business location.",
+  "sharedDirection": "4:3 landscape, warm cream seamless background, soft studio flash, realistic skin and anatomy, fine analog texture; no lettering, watermark, border or graphics. Portrait 1 is the lighting/style and subject reference for variants.",
+  "images": [
+    {
+      "file": "portrait-1.png",
+      "source": "C:\\Users\\Gio\\.codex\\generated_images\\01a08530-be8b-7ea2-a331-05d4b85d48d8\\exec-4d3e3e2e-b269-4ab9-abf7-966aaffa3910.png",
+      "prompt": "Use case: photorealistic-natural. Asset: 4:3 landscape studio sample portrait for Motif Moments, an original Korean-style self-photo booth brand in the Philippines. Two stylish Filipino adult women, mid twenties, one with shoulder-length dark hair wearing a butter-yellow knit top, the other with long dark hair wearing a blush pink cotton shirt, lean together laughing naturally and making small finger hearts. Chest-up portrait, both faces fully visible, warm cream seamless backdrop, direct soft studio flash, realistic skin and hands, charming analog photo texture, beautifully composed candid editorial photography. Soft warm paper, blush, butter palette. No lettering, no watermark, no frame, no graphics. Output one photograph, 4:3 landscape."
+    },
+    {
+      "file": "portrait-2.png",
+      "source": "C:\\Users\\Gio\\.codex\\generated_images\\01a08530-be8b-7ea2-a331-05d4b85d48d8\\exec-24ad2172-082b-4db2-8948-1f50d996b30b.png",
+      "prompt": "Same two women from the reference, same clothes, a new pose: both holding peace signs beside their cheeks, cheerful smiles."
+    },
+    {
+      "file": "portrait-3.png",
+      "source": "C:\\Users\\Gio\\.codex\\generated_images\\01a08530-be8b-7ea2-a331-05d4b85d48d8\\exec-fced12b7-3934-4a91-80a0-0cdf7891bbf7.png",
+      "prompt": "Same two women from the reference, same clothes, a new pose: leaning back to back with folded arms and playful confident expressions."
+    },
+    {
+      "file": "portrait-4.png",
+      "source": "C:\\Users\\Gio\\.codex\\generated_images\\01a08530-be8b-7ea2-a331-05d4b85d48d8\\exec-a277c43b-5947-4b6b-858e-1af69bc7d8aa.png",
+      "prompt": "Same two women from the reference, same clothes, a new pose: hugging shoulder to shoulder, laughing with eyes closed."
+    },
+    {
+      "file": "portrait-5.png",
+      "source": "C:\\Users\\Gio\\.codex\\generated_images\\01a08530-be8b-7ea2-a331-05d4b85d48d8\\exec-3772c750-f51e-494e-af7b-f6f6177d6323.png",
+      "prompt": "A Filipino adult couple in their mid twenties, man with short dark hair and mint cotton shirt, woman with dark bob and ivory top, leaning cheeks together with relaxed smiles. Reference is lighting and art-direction reference only; different subjects."
+    },
+    {
+      "file": "portrait-6.png",
+      "source": "C:\\Users\\Gio\\.codex\\generated_images\\01a08530-be8b-7ea2-a331-05d4b85d48d8\\exec-870813f1-8b39-442f-a5f1-a7119d3e50dd.png",
+      "prompt": "Same couple described: Filipino adults in their mid twenties, short-haired man in mint shirt and dark-bob-haired woman in ivory top, making a heart together with their hands, naturally laughing. Reference is lighting and art-direction reference only."
+    },
+    {
+      "file": "portrait-7.png",
+      "source": "C:\\Users\\Gio\\.codex\\generated_images\\01a08530-be8b-7ea2-a331-05d4b85d48d8\\exec-10bf1841-ea40-4e0a-866b-2e42e80d2c34.png",
+      "prompt": "Solo Filipino adult woman mid twenties with wavy dark hair, lavender knit cardigan, holding a small peace sign at her cheek, confident candid smile. Reference is lighting and art-direction reference only."
+    },
+    {
+      "file": "portrait-8.png",
+      "source": "C:\\Users\\Gio\\.codex\\generated_images\\01a08530-be8b-7ea2-a331-05d4b85d48d8\\exec-575204bd-e116-42a0-9ceb-6f146a4614d4.png",
+      "prompt": "Solo Filipino adult man mid twenties with curly dark hair, pale butter-yellow casual shirt, tilting his head and smiling widely, relaxed hands out of frame. Reference is lighting and art-direction reference only."
+    }
+  ]
+}

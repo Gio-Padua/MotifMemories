@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local review tooling and raw audit artifacts
+/.impeccable/tools/
+/.impeccable/review/

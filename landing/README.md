@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Motif Moments
 
-## Getting Started
+A responsive self-photo booth discovery page. The first view is static HTML and an optimized image; one Three.js canvas progressively adds the native-scroll photo story. No kiosk service, database, or external asset host is required.
 
-First, run the development server:
+## Run
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
+```sh
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Production preview:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sh
+pnpm build
+pnpm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open http://localhost:3000. Set `SITE_URL` to the real HTTPS origin before a deployment build so social metadata uses the correct domain. The local default is `http://localhost:3000`. Business location, price, hours, and contact details remain intentionally unpublished.
 
-## Learn More
+## Checks
 
-To learn more about Next.js, take a look at the following resources:
+```sh
+pnpm check
+pnpm lint
+pnpm typecheck
+pnpm build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`scripts/browser-check.mjs` runs headless Edge checks with Playwright. `scripts/audit.mjs` performs three cold mobile Lighthouse runs against the production server. These are optional review tools, not production dependencies. Install Playwright and Lighthouse in a separate tooling directory and set `PLAYWRIGHT_MODULE` and `LIGHTHOUSE_MODULE` to their module URLs, or make the packages available to Node. Reports and screenshots are saved in `.impeccable/review/`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Local assets
 
-## Deploy on Vercel
+- `assets/originals/`: eight generated source photographs; not exposed by the site.
+- `assets/manifest.json`: generation provenance and prompts.
+- `lib/frames.mjs`: exact kiosk layout placements, including duplicated strip captures.
+- `public/images/`: optimized portraits, completed collages, thumbnails, textures, and hero.
+- `assets/fonts/inter-latin.woff2`: English subset of the existing Inter variable font; variable weights are preserved. Original OFL license is served alongside the font.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Run `pnpm assets` to regenerate delivery images using Sharp and the existing sibling kiosk overlays. No image-generation API call is needed for this step. To regenerate the font subset, install build-only `fonttools[woff]` and run `python scripts/subset-font.py`, then `pnpm assets`. Extend the subset when adding new language characters.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `AGENTS.md` for project constraints, `DESIGN.md` for the implemented website design, and `VALIDATION.md` for measured results.
