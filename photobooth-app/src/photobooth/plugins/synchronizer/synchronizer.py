@@ -1,15 +1,22 @@
+import configparser
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from importlib import resources
 from pathlib import Path
-from threading import Lock
+from threading import Event, Lock, Thread
+from time import monotonic
 from urllib.parse import quote
 from uuid import UUID
 
 import requests
+from PIL import Image
 from rclone_api.api import RcloneApi
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session
 
+from ...database.database import engine
+from ...database.models import Mediaitem
 from ...models.genericstats import GenericStats, SubList, SubStats
 from .. import hookimpl
 from ..base_plugin import BasePlugin
@@ -30,6 +37,10 @@ class CustomerResultTransfer:
     destination: str
     url: str
     error: str | None = None
+    attempts: int = 0
+    retry_at: float = 0
+    ready: bool = False
+    failures: int = 0
 
 
 class Synchronizer(BasePlugin[SynchronizerConfig]):
@@ -46,6 +57,9 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
         self._customer_results: dict[UUID, CustomerResultTransfer] = {}
         self._customer_lock = Lock()
         self._storage_health: tuple[datetime, bool] | None = None
+        self._storage_error = "Synchronizer is disabled"
+        self._customer_stop = Event()
+        self._customer_thread: Thread | None = None
 
     def __str__(self):
         return "Sync and Share Online"
@@ -60,6 +74,7 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
         _bind_gui = "127.0.0.1:5573"
         _log_file = Path("log/rclone.log") if self._config.rclone_config.rclone_enable_logging else None
         _config_file = Path("./config/rclone.conf")
+        logger.info("Rclone configuration: %s", _config_file.resolve())
         _immediate_sync_remotes = [x for x in self._config.remotes if x.enable_immediate_sync and x.enabled and x.sync_scope == "archive"]
         _full_sync_remotes = [x for x in self._config.remotes if x.enable_regular_sync and x.enabled and x.sync_scope == "archive"]
         _copy_sharepage_to_remotes = [x for x in self._config.remotes if x.enabled and x.enable_sharepage_sync and x.enabled]
@@ -67,6 +82,16 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
         self._customer_remote = customer_remotes[0] if customer_remotes else None
         if len(customer_remotes) > 1:
             logger.warning("only the first customer_results remote is used")
+
+        if self._customer_remote:
+            settings = configparser.ConfigParser(interpolation=None)
+            settings.read(_config_file)
+            name = self._customer_remote.name.rstrip(":")
+            if not settings.has_section(name):
+                self._storage_error = "Runtime rclone.conf or the configured remote is missing"
+                logger.error(self._storage_error)
+                return
+        self._storage_error = "Customer-results remote is missing" if not self._customer_remote else "Storage has not been checked yet"
 
         self._rclone_client = RcloneApi(
             bind_gui=_bind_gui,
@@ -79,6 +104,10 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
             # bwlimit="1M",
         )
         self._rclone_client.start()
+        if self._customer_remote:
+            self._customer_stop.clear()
+            self._customer_thread = Thread(target=self._customer_worker, name="kiosk-delivery", daemon=True)
+            self._customer_thread.start()
 
         self._regular_sync = ThreadedRegularSync(
             rclone=self._rclone_client,
@@ -107,6 +136,10 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
 
     @hookimpl
     def stop(self):
+
+        self._customer_stop.set()
+        if self._customer_thread:
+            self._customer_thread.join(timeout=15)
 
         if self._regular_sync:
             self._regular_sync.stop()
@@ -258,6 +291,8 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
             share_links.append(self._shareondemand.get_share_link(identifier))
 
         for remote in self._config.remotes:
+            if remote.sync_scope == "customer_results":
+                continue
             shareconfig = remote.shareconfig
             mediaitem_link: str | None = None
 
@@ -328,64 +363,160 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
         for file in files:
             self._immediate_pipeline.submit(TaskDelete(file), priority=19)
 
+    @staticmethod
+    def _delivery_state(identifier: UUID) -> dict | None:
+        with Session(engine) as db:
+            media = db.get(Mediaitem, identifier)
+            return media.customer_delivery if media else None
+
+    @staticmethod
+    def _save_delivery(identifier: UUID, value: dict):
+        # Upload progress must not increment the image revision or invalidate its previews.
+        with Session(engine) as db:
+            db.execute(update(Mediaitem).where(Mediaitem.id == identifier).values(customer_delivery=value))
+            db.commit()
+
+    def _customer_worker(self):
+        while not self._customer_stop.is_set():
+            try:
+                with Session(engine) as db:
+                    pending = [
+                        (m.id, m.processed)
+                        for m in db.scalars(select(Mediaitem).where(Mediaitem.customer_delivery.is_not(None)))
+                        if m.customer_delivery.get("status") in ("queued", "uploading")
+                    ]
+                for identifier, path in pending:
+                    if self._customer_stop.is_set():
+                        break
+                    self.collection_customer_result_added(path, identifier)
+                    self.get_customer_result_status(identifier)
+            except Exception:
+                logger.exception("Customer delivery worker could not advance its queue")
+            self._customer_stop.wait(2)
+
     @hookimpl
     def collection_customer_result_added(self, filepath_local: Path, identifier: UUID) -> None:
-        if not self._rclone_client or not self._customer_remote:
-            return
-        if filepath_local.suffix.lower() not in (".jpg", ".jpeg"):
+        if not self._rclone_client or not self._customer_remote or filepath_local.suffix.lower() not in (".jpg", ".jpeg"):
             return
         with self._customer_lock:
-            existing = self._customer_results.get(identifier)
-            if existing and not existing.error:
+            if identifier in self._customer_results:
                 return
+            state = self._delivery_state(identifier) or {"status": "queued", "attempts": 0}
             remote = self._customer_remote
             destination = Path(remote.subdir, f"{identifier}.jpg").as_posix()
             url = (remote.shareconfig.manual_public_link or "").format(filename=f"{identifier}.jpg", identifier=str(identifier))
+            self._customer_results[identifier] = CustomerResultTransfer(
+                None,
+                remote,
+                destination,
+                url,
+                error=state.get("error") if state.get("status") == "failed" else None,
+                attempts=state.get("attempts", 0),
+                failures=state.get("failures", 0),
+            )
+            if not self._delivery_state(identifier):
+                self._save_delivery(identifier, state)
+
+    def _advance_customer(self, identifier: UUID, transfer: CustomerResultTransfer) -> dict:
+        if transfer.ready:
+            return {"status": "ready", "urls": [transfer.url]}
+        if transfer.error:
+            return {"status": "failed", "error": transfer.error}
+        if monotonic() < transfer.retry_at:
+            return {"status": "queued"}
+        if not transfer.url:
+            raise ValueError("Public customer-result URL is not configured")
+        if transfer.jobid is not None:
             try:
-                job = self._rclone_client.copyfile_async(
-                    filepath_local.parent.absolute().as_posix(), filepath_local.name, remote.name, destination
-                )
-                self._customer_results[identifier] = CustomerResultTransfer(job.jobid, remote, destination, url)
+                job = self._rclone_client.job_status(transfer.jobid)
             except Exception as exc:
-                self._customer_results[identifier] = CustomerResultTransfer(None, remote, destination, url, str(exc))
+                if "job not found" not in str(exc).lower():
+                    raise
+                transfer.jobid = None
+            else:
+                if not job.finished:
+                    return {"status": "uploading"}
+                if not job.success:
+                    transfer.jobid = None
+                    raise RuntimeError(job.error or "Upload failed")
+
+        # Also covers a backend restart or an expired rclone job record.
+        response = requests.head(transfer.url.split("?", 1)[0], timeout=5)
+        if response.ok and response.headers.get("Content-Type", "").split(";")[0] == "image/jpeg":
+            transfer.ready = True
+            return {"status": "ready", "urls": [transfer.url]}
+        if response.status_code in (401, 403):
+            raise ValueError("Public object is not accessible; check bucket visibility")
+        if transfer.jobid is not None:
+            raise RuntimeError("Uploaded object is not publicly available yet")
+        with Session(engine) as db:
+            media = db.get(Mediaitem, identifier)
+            if not media or not media.processed.is_file():
+                raise ValueError("Local finalized image is missing")
+            path = media.processed
+        transfer.attempts += 1
+        job = self._rclone_client.copyfile_async(path.parent.absolute().as_posix(), path.name, transfer.remote.name, transfer.destination)
+        transfer.jobid = job.jobid
+        return {"status": "uploading"}
 
     @hookimpl
     def get_customer_result_status(self, identifier: UUID) -> dict | None:
-        if not self._rclone_client:
-            return None
+        if not self._rclone_client or not self._customer_remote:
+            return {"status": "failed", "error": self._storage_error}
         with self._customer_lock:
             transfer = self._customer_results.get(identifier)
-        if not transfer:
-            return None
-        if transfer.error:
-            return {"status": "failed", "error": transfer.error}
-        if not transfer.jobid:
-            return {"status": "queued"}
-        try:
-            job = self._rclone_client.job_status(transfer.jobid)
-            if not job.finished:
-                return {"status": "uploading"}
-            if not job.success:
-                return {"status": "failed", "error": job.error or "upload failed"}
-            if not transfer.url:
-                return {"status": "failed", "error": "public customer-result URL is not configured"}
-            response = requests.head(transfer.url.split("?", 1)[0], timeout=5)
-            if not response.ok:
-                return {"status": "failed", "error": f"public object check returned HTTP {response.status_code}"}
-            return {"status": "ready", "urls": [transfer.url]}
-        except Exception as exc:
-            return {"status": "failed", "error": str(exc)}
+            if not transfer:
+                return None
+            try:
+                result = self._advance_customer(identifier, transfer)
+            except Exception as exc:
+                transfer.failures += 1
+                raw = str(exc).lower()
+                permanent = isinstance(exc, ValueError) or any(text in raw for text in ("403", "401", "signature", "accessdenied", "invalidaccess"))
+                message = (
+                    str(exc)
+                    if isinstance(exc, ValueError)
+                    else (
+                        "Storage authentication failed; verify S3 credentials and region"
+                        if permanent
+                        else "Storage transfer or public verification failed; check connection and bucket configuration"
+                    )
+                )
+                if permanent or transfer.failures >= 4:
+                    transfer.error = message
+                    result = {"status": "failed", "error": message}
+                else:
+                    # ponytail: one booth, one bounded retry schedule; use a durable queue only for multi-booth hosting.
+                    transfer.retry_at = monotonic() + 2**transfer.failures
+                    transfer.jobid = None
+                    transfer.attempts = max(1, transfer.attempts)
+                    result = {"status": "queued"}
+            persisted = {**result, "attempts": transfer.attempts, "failures": transfer.failures}
+            if self._delivery_state(identifier) != persisted:
+                self._save_delivery(identifier, persisted)
+            return result
+
+    @hookimpl
+    def kiosk_retry_customer_result(self, identifier: UUID) -> None:
+        with self._customer_lock:
+            transfer = self._customer_results.get(identifier)
+            if transfer and (transfer.ready or not transfer.error):
+                return
+            self._customer_results.pop(identifier, None)
+            self._save_delivery(identifier, {"status": "queued", "attempts": 0, "failures": 0})
 
     @hookimpl
     def collection_customer_result_deleted(self, identifier: UUID) -> None:
         if not self._rclone_client or not self._customer_remote:
             return
-        destination = Path(self._customer_remote.subdir, f"{identifier}.jpg").as_posix()
-        try:
+        with self._customer_lock:
+            destination = Path(self._customer_remote.subdir, f"{identifier}.jpg").as_posix()
             self._rclone_client.deletefile(self._customer_remote.name, destination)
-        finally:
-            with self._customer_lock:
-                self._customer_results.pop(identifier, None)
+            self._customer_results.pop(identifier, None)
+
+    @hookimpl
+    def kiosk_storage_diagnostics(self) -> dict:
+        return {"configured": bool(self._rclone_client and self._customer_remote), "message": self._storage_error}
 
     @hookimpl
     def kiosk_storage_health(self) -> bool:
@@ -394,18 +525,32 @@ class Synchronizer(BasePlugin[SynchronizerConfig]):
             return self._storage_health[1]
         healthy = False
         if self._rclone_client and self._customer_remote:
-            local = Path("tmp/kiosk-storage-health.txt")
-            remote_file = Path(self._customer_remote.subdir, ".healthcheck").as_posix()
+            from uuid import uuid4
+
+            name = f".health-{uuid4()}.jpg"
+            local = Path("tmp", name)
+            remote_file = Path(self._customer_remote.subdir, name).as_posix()
             try:
                 local.parent.mkdir(parents=True, exist_ok=True)
-                local.write_text("ok", encoding="ascii")
+                Image.new("RGB", (2, 2), "white").save(local, format="JPEG")
                 self._rclone_client.copyfile(local.parent.absolute().as_posix(), local.name, self._customer_remote.name, remote_file)
-                entries = self._rclone_client.ls(self._customer_remote.name, self._customer_remote.subdir)
-                healthy = any(entry.Name == ".healthcheck" for entry in entries)
-                self._rclone_client.deletefile(self._customer_remote.name, remote_file)
-            except Exception as exc:
-                logger.warning(f"customer storage health check failed: {exc}")
+                url = (
+                    (self._customer_remote.shareconfig.manual_public_link or "")
+                    .format(filename=name, identifier=name.removesuffix(".jpg"))
+                    .split("?", 1)[0]
+                )
+                response = requests.head(url, timeout=5)
+                healthy = response.ok and response.headers.get("Content-Type", "").split(";")[0] == "image/jpeg"
+                self._storage_error = "" if healthy else f"Public storage check returned HTTP {response.status_code}"
+            except Exception:
+                self._storage_error = "Storage read/write check failed; verify runtime configuration, S3 credentials, region, and bucket"
+                logger.warning(self._storage_error)
             finally:
+                try:
+                    self._rclone_client.deletefile(self._customer_remote.name, remote_file)
+                except Exception:
+                    healthy = False
+                    self._storage_error = "Storage probe cleanup failed; verify delete access"
                 local.unlink(missing_ok=True)
         self._storage_health = (now, healthy)
         return healthy

@@ -13,6 +13,8 @@ router = APIRouter(prefix="/share", tags=["share"])
 
 
 def _share(mediaitem: Mediaitem, index: int, parameters: dict[str, str] | None):
+    if container.kiosk_payment_service.is_kiosk_result(mediaitem.id):
+        raise HTTPException(409, "Use the kiosk print endpoint for this result")
     try:
         container.share_service.share(mediaitem, index, parameters)
     except (BlockingIOError, ConnectionRefusedError, WrongMediaTypeError):
@@ -44,6 +46,8 @@ def api_share_item_id(id: UUID, index: int = 0, parameters: dict[str, str] | Non
 
 @router.get("/download/{id}")
 def api_download_item_id_get_sharelinks(id: UUID):  # -> list[str]:
+    if container.kiosk_payment_service.is_kiosk_result(id):
+        raise HTTPException(409, "Use the kiosk download endpoint for this result")
     try:
         requested_mediaitem = container.mediacollection_service.get_item(id)
     except FileNotFoundError as exc:

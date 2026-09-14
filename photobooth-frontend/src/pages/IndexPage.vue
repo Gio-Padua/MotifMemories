@@ -43,6 +43,10 @@ async function refreshKioskStatus() {
   const headers = mainStore.kioskTestGrant ? { 'X-Kiosk-Test-Grant': mainStore.kioskTestGrant } : undefined
   const response = await _fetch('/api/kiosk/status', { headers })
   if (response.ok) mainStore.kioskState = await response.json()
+  const session = mainStore.kioskState?.session
+  if (session?.state === 'presenting' && session.printable_result_id && (session.mode === 'paid' || mainStore.kioskTestGrant)) {
+    await router.replace({ name: 'itempresenter', params: { id: session.printable_result_id } })
+  }
 }
 
 watch(

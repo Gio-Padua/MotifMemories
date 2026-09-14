@@ -11,13 +11,14 @@ from sqlalchemy.orm import Session
 
 from ..appconfig import appconfig
 from ..database.database import engine
-from ..database.models import KioskPaymentSession
+from ..database.models import KioskPaymentSession, Mediaitem
 from ..plugins import pm as pluggy_pm
 from ..utils.printer import PrinterStatus, get_printer_status
 from .acquisition import AcquisitionService
 from .base import BaseService
 from .collection import MediacollectionService
 from .kiosk_credit import apply_bill, partial_credit_expired
+from .kiosk_filters import FILTERS, render_look
 from .share import ShareService
 from .sse import sse_service
 from .sse.sse_ import SseEventKioskState
@@ -43,11 +44,24 @@ class KioskPaymentService(BaseService):
         self._collection = collection
         self._share = share
         self._lock = Lock()
+        self._render_lock = Lock()
         self._last_cleanup = datetime.min
 
     def start(self):
         super().start()
         self._recover_interrupted_capture()
+        with Session(engine) as db:
+            item = self._active(db)
+            recovery = (
+                (item.id, UUID(item.printable_result_id), item.selected_filter)
+                if item and item.presentation_stage == "rendering" and item.printable_result_id
+                else None
+            )
+        if recovery:
+            try:
+                self._finish_render(*recovery)
+            except Exception:
+                logger.exception("Could not recover kiosk filter render; original is retained")
         super().started()
 
     def stop(self):
@@ -122,6 +136,7 @@ class KioskPaymentService(BaseService):
                 "denominations": appconfig.kiosk.accepted_denominations_php,
                 "readiness": readiness,
                 "test_grant_valid": grant_valid,
+                "storage": next(iter(pluggy_pm.hook.kiosk_storage_diagnostics()), {"configured": False, "message": "Storage plugin unavailable"}),
                 "session": None,
             }
             if item:
@@ -137,7 +152,14 @@ class KioskPaymentService(BaseService):
                     "retakes_remaining": max(appconfig.kiosk.free_retakes - item.retakes_used, 0) if item.prints_used == 0 else 0,
                     "prints_remaining": max(appconfig.kiosk.included_prints - item.prints_used, 0),
                     "printable_result_id": item.printable_result_id,
+                    "presentation_stage": item.presentation_stage,
+                    "selected_filter": item.selected_filter,
                 }
+                if item.presentation_stage != "review":
+                    result["session"]["retakes_remaining"] = 0
+                if item.printable_result_id:
+                    media = db.get(Mediaitem, UUID(item.printable_result_id))
+                    result["session"]["upload"] = media.customer_delivery if media else None
             return result
 
     def _run_retention_if_due(self):
@@ -156,7 +178,9 @@ class KioskPaymentService(BaseService):
             except Exception as exc:
                 logger.warning(f"cloud retention cleanup failed for {value}: {exc}")
             try:
-                self._collection.delete_item(self._collection.get_item(UUID(value)), delete_to_recycle_dir=False)
+                media = self._collection.get_item(UUID(value))
+                for related in self._collection.get_items_relto_job(media.job_identifier):
+                    self._collection.delete_item(related, delete_to_recycle_dir=False)
             except (FileNotFoundError, ValueError):
                 continue
             except Exception as exc:
@@ -195,9 +219,7 @@ class KioskPaymentService(BaseService):
                 db.add(item)
             if item.mode != "paid" or item.state != "collecting":
                 raise KioskPaymentRequiredError("validator is inhibited")
-            bills, credit, overpayment, paid = apply_bill(
-                item.inserted_bills, denomination, item.price, appconfig.kiosk.accepted_denominations_php
-            )
+            bills, credit, overpayment, paid = apply_bill(item.inserted_bills, denomination, item.price, appconfig.kiosk.accepted_denominations_php)
             item.inserted_bills = bills
             item.credited_amount = credit
             item.overpayment = overpayment
@@ -218,6 +240,8 @@ class KioskPaymentService(BaseService):
         with self._lock, Session(engine) as db:
             active = self._active(db)
             if active:
+                if active.state == "capturing" or active.presentation_stage == "rendering":
+                    raise KioskPaymentRequiredError("Wait for the current capture or filter to finish")
                 active.state = "voided"
                 active.completed_at = datetime.now()
             db.add(
@@ -259,7 +283,12 @@ class KioskPaymentService(BaseService):
                 raise KioskPaymentRequiredError("paid credit is safe; booth readiness must recover before capture")
             if item.state == "paid":
                 item.reserved_retake = False
-            elif item.state == "presenting" and item.prints_used == 0 and item.retakes_used < appconfig.kiosk.free_retakes:
+            elif (
+                item.state == "presenting"
+                and item.presentation_stage == "review"
+                and item.prints_used == 0
+                and item.retakes_used < appconfig.kiosk.free_retakes
+            ):
                 item.reserved_retake = True
             else:
                 raise KioskPaymentRequiredError("capture entitlement is not available")
@@ -277,7 +306,6 @@ class KioskPaymentService(BaseService):
         self.emit()
 
     def complete_capture(self, media_id: UUID):
-        should_upload = False
         with self._lock, Session(engine) as db:
             item = self._active(db)
             if not item or item.state != "capturing":
@@ -289,19 +317,83 @@ class KioskPaymentService(BaseService):
             item.printable_result_id = result_id
             item.reserved_retake = False
             item.state = "presenting"
+            item.presentation_stage = "review"
+            item.selected_filter = "original"
             db.commit()
-            should_upload = True
-        if should_upload:
-            try:
-                mediaitem = self._collection.get_item(media_id)
-                if mediaitem.media_type == "collage" and mediaitem.processed.suffix.lower() in (".jpg", ".jpeg"):
-                    pluggy_pm.hook.collection_customer_result_added(filepath_local=mediaitem.processed, identifier=media_id)
-            except Exception as exc:
-                logger.error(f"could not queue kiosk result {media_id} for customer delivery: {exc}")
         self.emit()
+
+    def is_kiosk_result(self, media_id: UUID) -> bool:
+        with Session(engine) as db:
+            return any(str(media_id) in item.result_ids for item in db.scalars(select(KioskPaymentSession)))
+
+    def _current_result(self, db: Session, media_id: UUID, test_grant: str | None):
+        item = self._active(db)
+        if not item or item.state != "presenting" or item.printable_result_id != str(media_id):
+            raise KioskPaymentRequiredError("This is not the current kiosk result")
+        if item.mode == "test" and not (test_grant and self.validate_test_grant(test_grant)):
+            raise KioskPaymentRequiredError("Valid operator test grant required")
+        return item
+
+    def keep_result(self, media_id: UUID, test_grant: str | None):
+        with self._lock, Session(engine) as db:
+            item = self._current_result(db, media_id, test_grant)
+            if item.presentation_stage == "review":
+                item.presentation_stage = "filters"
+                db.commit()
+        self.emit()
+
+    def finalize_result(self, media_id: UUID, look: str, test_grant: str | None):
+        if look not in FILTERS:
+            raise ValueError("Unknown kiosk filter")
+        if not self._render_lock.acquire(blocking=False):
+            raise KioskPaymentRequiredError("A filter is already being prepared")
+        try:
+            with self._lock, Session(engine) as db:
+                item = self._current_result(db, media_id, test_grant)
+                if item.presentation_stage == "delivery" and item.selected_filter == look:
+                    return self._collection.get_item(media_id)
+                if item.presentation_stage != "filters":
+                    raise KioskPaymentRequiredError("Keep the photos before choosing a look; delivered looks are locked")
+                item.selected_filter = look
+                item.presentation_stage = "rendering"
+                session_id = item.id
+                db.commit()
+            self.emit()
+            return self._finish_render(session_id, media_id, look)
+        finally:
+            self._render_lock.release()
+
+    def _finish_render(self, session_id: int, media_id: UUID, look: str):
+        try:
+            mediaitem = self._collection.get_item(media_id)
+            render_look(mediaitem, look)
+            mediaitem.pipeline_config = {**mediaitem.pipeline_config, "kiosk_filter": look}
+            self._collection.update_item(mediaitem)
+            with self._lock, Session(engine) as db:
+                item = db.get(KioskPaymentSession, session_id)
+                item.presentation_stage = "delivery"
+                media = db.get(Mediaitem, media_id)
+                media.customer_delivery = {"status": "queued", "attempts": 0}
+                db.commit()
+        except Exception:
+            with Session(engine) as db:
+                item = db.get(KioskPaymentSession, session_id)
+                if item:
+                    item.presentation_stage = "filters"
+                    db.commit()
+            self.emit()
+            raise
+        try:
+            pluggy_pm.hook.collection_customer_result_added(filepath_local=mediaitem.processed, identifier=media_id)
+        except Exception:
+            logger.exception("Customer delivery queue failed; final image remains local")
+        self.emit()
+        return self._collection.get_item(media_id)
 
     def print_result(self, media_id: UUID, action_index: int, test_grant: str | None = None):
         try:
+            if action_index < 0:
+                raise IndexError
             action = appconfig.share.actions[action_index]
         except IndexError as exc:
             raise ValueError("invalid print action") from exc
@@ -309,7 +401,7 @@ class KioskPaymentService(BaseService):
             raise ValueError("action is not an enabled parameter-free image print action")
         with self._lock, Session(engine) as db:
             item = self._active(db)
-            if not item or item.state != "presenting" or item.printable_result_id != str(media_id):
+            if not item or item.state != "presenting" or item.presentation_stage != "delivery" or item.printable_result_id != str(media_id):
                 raise KioskPaymentRequiredError("this result is not printable")
             if item.mode == "test" and not (test_grant and self.validate_test_grant(test_grant)):
                 raise KioskPaymentRequiredError("valid operator test grant required")
@@ -325,6 +417,8 @@ class KioskPaymentService(BaseService):
         with self._lock, Session(engine) as db:
             item = self._active(db)
             if item:
+                if item.presentation_stage == "rendering":
+                    raise KioskPaymentRequiredError("Please wait for the image to finish")
                 item.state = "completed"
                 item.completed_at = datetime.now()
                 db.commit()
@@ -334,6 +428,8 @@ class KioskPaymentService(BaseService):
         with self._lock, Session(engine) as db:
             item = self._active(db)
             if item:
+                if item.presentation_stage == "rendering":
+                    raise KioskPaymentRequiredError("Please wait for the image to finish")
                 item.state = "voided"
                 item.completed_at = datetime.now()
                 db.commit()
@@ -345,6 +441,9 @@ class KioskPaymentService(BaseService):
             recorded = any(str(media_id) in item.result_ids for item in db.scalars(select(KioskPaymentSession)).all())
         if not recorded:
             raise KioskResultNotFoundError(str(media_id))
+        mediaitem = self._collection.get_item(media_id)
+        if mediaitem.filter_source and not mediaitem.customer_delivery:
+            raise KioskPaymentRequiredError("Confirm the photos and filter before downloading")
 
         results = pluggy_pm.hook.get_customer_result_status(identifier=media_id)
         for result in results:
@@ -361,3 +460,10 @@ class KioskPaymentService(BaseService):
             if result:
                 return result
         return {"status": "failed", "error": "customer storage is not configured"}
+
+    def retry_download(self, media_id: UUID, test_grant: str | None):
+        with self._lock, Session(engine) as db:
+            item = self._current_result(db, media_id, test_grant)
+            if item.presentation_stage != "delivery":
+                raise KioskPaymentRequiredError("Confirm this result first")
+        pluggy_pm.hook.kiosk_retry_customer_result(identifier=media_id)

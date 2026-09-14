@@ -8,3 +8,4 @@ allowBuilds:
   lightningcss: true
   rolldown: true
   unrs-resolver: true
+  vue-demi: set this to true or false

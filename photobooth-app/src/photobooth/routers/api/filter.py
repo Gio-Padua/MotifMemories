@@ -64,6 +64,8 @@ def api_get_preview_image_filtered(mediaitem_id: UUID, filter: str):
 
 @router.patch("/{mediaitem_id}")
 def api_applyfilter(mediaitem_id: UUID, filter: str):
+    if container.kiosk_payment_service.is_kiosk_result(mediaitem_id):
+        raise HTTPException(409, "Use kiosk filter finalization for this result")
     try:
         mediaitem = container.mediacollection_service.get_item(item_id=mediaitem_id)
 

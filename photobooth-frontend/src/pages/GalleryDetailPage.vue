@@ -8,9 +8,32 @@
           <div
             class="kiosk-result-print tw:mx-auto tw:h-full tw:max-h-[88vh] tw:w-full tw:max-w-[min(58vw,720px)] tw:rotate-[-1deg] tw:bg-card tw:p-[clamp(0.75rem,1.5vw,1.4rem)] tw:shadow-[14px_20px_48px_rgba(23,23,23,0.2)]"
           >
-            <MediaItemPreviewViewer :item="currentMediaitem" style="user-select: none" />
+            <img
+              v-if="filterPreview && stage === 'filters'"
+              :src="filterPreview"
+              :alt="$t('kiosk.filters.previewAlt')"
+              class="tw:h-full tw:w-full tw:object-contain"
+            />
+            <MediaItemPreviewViewer v-else :item="currentMediaitem" style="user-select: none" />
           </div>
+          <KioskFilterPicker
+            v-if="stage === 'filters'"
+            :options="kioskFilters"
+            :busy="kioskBusy"
+            :error="kioskError"
+            @select="selectFilter"
+            @confirm="finalizeFilter"
+          />
+          <section v-else-if="stage === 'rendering'" role="status" class="tw:flex tw:flex-col tw:gap-4">
+            <h1 class="tw:text-4xl">{{ $t('kiosk.filters.preparing') }}</h1>
+            <q-spinner size="64px" />
+          </section>
           <KioskResultActions
+            v-else
+            :key="currentMediaitem.id"
+            :stage="stage"
+            :busy="kioskBusy"
+            :error="kioskError"
             :media-id="currentMediaitem.id"
             :print-action-index="printActionIndex"
             :qr-enabled="qrEnabled"
@@ -18,12 +41,16 @@
             :qr-text-below="configurationStore.configuration.uisettings.qrcode_text_below"
             :qr-link-codes="configurationStore.configuration.uisettings.qrcode_link_codes"
             :retake-action="retakeAction"
+            @keep="keepPhotos"
+            @busy="deliveryBusy = $event"
           />
           <RouteAfterTimeout
-            :timeout-ms="configurationStore.configuration.uisettings.AUTOCLOSE_NEW_ITEM_ARRIVED * 1000"
+            v-if="!kioskBusy && !deliveryBusy && stage !== 'rendering' && !(stage === 'filters' && kioskError)"
+            :key="stage"
+            :timeout-ms="stage === 'filters' ? 30000 : configurationStore.configuration.uisettings.AUTOCLOSE_NEW_ITEM_ARRIVED * 1000"
             :warning-time-ms="10000"
-            :warning-message="$t('kiosk.result.timeoutWarning')"
-            @on-timeout="finishKioskSession"
+            :warning-message="$t(stage === 'filters' ? 'kiosk.filters.timeoutWarning' : 'kiosk.result.timeoutWarning')"
+            @on-timeout="onKioskTimeout"
           />
         </main>
       </template>
@@ -121,7 +148,7 @@ import type { TriggerSchema } from '@/types/trigger-schema'
 import { useMainStore } from '@/stores/main-store'
 import { useConfigurationStore } from '@/stores/configuration-store'
 import { useMediacollectionStore } from '@/stores/mediacollection-store'
-import { computed, onBeforeMount, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeMount, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { default as PageShareParameters } from '@/components/mediaviewer/PageShareParameters.vue'
 import { default as PageToolbar } from '@/components/mediaviewer/PageToolbar.vue'
 import { default as HeaderProcessing } from '@/components/mediaviewer/HeaderProcessing.vue'
@@ -136,10 +163,13 @@ import { remoteProcedureCall, _fetch } from '@/util/fetch_api.js'
 import { watchDebounced } from '@vueuse/core'
 import { default as MediaItemPreviewViewer } from '@/components/MediaItemPreviewViewer.vue'
 import KioskResultActions from '@/components/kiosk/KioskResultActions.vue'
+import KioskFilterPicker, { type KioskFilterOption } from '@/components/kiosk/KioskFilterPicker.vue'
 import { resolveKioskPresets } from '@/components/kiosk/kiosk-presets'
 import RouteAfterTimeout from '@/components/RouteAfterTimeout.vue'
+import { useI18n } from 'vue-i18n'
 
 const $q = useQuasar()
+const { t } = useI18n()
 const route = useRoute('mediaviewer')
 const router = useRouter()
 const mainStore = useMainStore()
@@ -152,6 +182,19 @@ const showDialogShareActionWithParameters = shallowRef(false)
 const shareActionWithParametersConfigIndex = shallowRef(0)
 const available_filter = ref([])
 const qrShareUrls = ref([])
+const kioskBusy = ref(false)
+const deliveryBusy = ref(false)
+const kioskError = ref<string | null>(null)
+const kioskFilters = ref<KioskFilterOption[]>([])
+const selectedFilter = ref('original')
+const filterPreview = ref<string | null>(null)
+const currentMediaitem = computed(() => mediacollectionStore.collection.find(item => item.id === selectedMediaitemId.value) ?? null)
+const stage = computed(() => {
+  const session = mainStore.kioskState?.session
+  return session && session.printable_result_id === currentMediaitem.value?.id ? session.presentation_stage : 'review'
+})
+let statusTimer: ReturnType<typeof setInterval> | undefined
+let statusPending = false
 const props = defineProps<{
   startTimer: boolean
   itemPresenterMode?: boolean
@@ -160,14 +203,96 @@ const props = defineProps<{
 onBeforeMount(() => {
   selectedMediaitemId.value = route.params.id as string
   if (!props.itemPresenterMode) getAvailableFilter()
+  else {
+    refreshKioskStatus()
+    statusTimer = setInterval(refreshKioskStatus, 2000)
+  }
 })
+onBeforeUnmount(() => clearInterval(statusTimer))
+
+function kioskHeaders() {
+  return mainStore.kioskTestGrant ? { 'X-Kiosk-Test-Grant': mainStore.kioskTestGrant } : {}
+}
+
+async function refreshKioskStatus() {
+  if (statusPending) return
+  statusPending = true
+  try {
+    const response = await _fetch('/api/kiosk/status', { headers: kioskHeaders() })
+    if (response.ok) mainStore.kioskState = await response.json()
+  } catch {
+    /* SSE/polling reconnects on the next tick. */
+  } finally {
+    statusPending = false
+  }
+}
+
+watch(
+  stage,
+  async value => {
+    if (!props.itemPresenterMode || value !== 'filters' || !currentMediaitem.value) return
+    try {
+      const response = await _fetch(`/api/kiosk/results/${currentMediaitem.value.id}/filters`)
+      if (!response.ok) throw new Error('preview unavailable')
+      kioskFilters.value = await response.json()
+    } catch {
+      kioskFilters.value = [{ id: 'original', label: 'Original', preview_url: `/media/preview/${currentMediaitem.value.id}` }]
+    }
+  },
+  { immediate: true }
+)
+
+function selectFilter(filter: string, preview: string | null) {
+  selectedFilter.value = filter
+  filterPreview.value = preview
+}
+
+async function keepPhotos() {
+  if (kioskBusy.value || !currentMediaitem.value) return
+  kioskBusy.value = true
+  kioskError.value = null
+  try {
+    const response = await _fetch(`/api/kiosk/results/${currentMediaitem.value.id}/keep`, { method: 'POST', headers: kioskHeaders() })
+    if (!response.ok) throw new Error('keep failed')
+    mainStore.kioskState = await response.json()
+  } catch {
+    kioskError.value = t('kiosk.filters.keepError')
+  } finally {
+    kioskBusy.value = false
+  }
+}
+
+async function finalizeFilter(filter: string) {
+  if (kioskBusy.value || !currentMediaitem.value) return
+  kioskBusy.value = true
+  kioskError.value = null
+  try {
+    const response = await _fetch(`/api/kiosk/results/${currentMediaitem.value.id}/finalize`, {
+      method: 'POST',
+      headers: { ...kioskHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filter }),
+    })
+    if (!response.ok) throw new Error('render failed')
+    const result = await response.json()
+    mediacollectionStore.updateMediaitem({ ...currentMediaitem.value, revision: result.revision })
+  } catch {
+    kioskError.value = t('kiosk.filters.renderError')
+  } finally {
+    await refreshKioskStatus()
+    kioskBusy.value = false
+  }
+}
+
+async function onKioskTimeout() {
+  if (stage.value === 'filters') await finalizeFilter(selectedFilter.value)
+  else await finishKioskSession()
+}
 watch(route, to => {
   selectedMediaitemId.value = to.params.id as string
 })
 const onCarouselTransition = (newMediaitemId: string | number) => {
   selectedMediaitemId.value = newMediaitemId as string
 }
-const currentMediaitem = computed(() => (selectedMediaitemId.value ? getMediaitemById(selectedMediaitemId.value) : null))
 
 const printActionIndex = computed(() => {
   if (!configurationStore.configuration.share.sharing_enabled) return null
@@ -203,8 +328,15 @@ const retakeAction = computed<TriggerSchema | null>(() => {
 })
 
 async function finishKioskSession() {
-  await _fetch('/api/kiosk/session/done', { method: 'POST' })
-  await router.push({ path: '/' })
+  try {
+    const response = await _fetch('/api/kiosk/session/done', { method: 'POST', headers: kioskHeaders() })
+    if (!response.ok) throw new Error('Could not close session')
+    sessionStorage.removeItem('kioskLastActionName')
+    mainStore.lastAction = null
+    await router.push({ path: '/' })
+  } catch {
+    kioskError.value = t('kiosk.filters.keepError')
+  }
 }
 
 watchDebounced(

@@ -21,6 +21,9 @@ class Files:
 
         logger.info(f"request delete files of {mediaitem}")
 
+        if mediaitem.filter_source:
+            mediaitem.filter_source.unlink(missing_ok=True)
+
         if mediaitem.captured_original:
             if delete_to_recycle_dir:
                 logger.info(f"moving {mediaitem} to recycle directory")
@@ -45,6 +48,8 @@ class Files:
             for file in Path(PATH_PROCESSED).glob("*.*"):
                 file.unlink()
             for file in Path(PATH_CAMERA_ORIGINAL).glob("*.*"):
+                file.unlink()
+            for file in Path("media/kiosk_sources").glob("*.png"):
                 file.unlink()
             for item in Path(TMP_PATH).glob("*"):
                 if item.is_file() or item.is_symlink():

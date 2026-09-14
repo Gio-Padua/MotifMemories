@@ -154,6 +154,14 @@ class PluginMediacollectionSpec:
     def kiosk_storage_health(self) -> bool:
         """Return whether customer storage was checked and is writable."""
 
+    @hookspec
+    def kiosk_storage_diagnostics(self) -> dict:
+        """Sanitized operator-facing storage configuration status."""
+
+    @hookspec
+    def kiosk_retry_customer_result(self, identifier: UUID) -> None:
+        """Retry a finalized result after the operator or guest requests it."""
+
 
 pm.add_hookspecs(PluginManagementSpec)
 pm.add_hookspecs(PluginAcquisitionSpec)

@@ -1,6 +1,8 @@
 # Local environment
 ptbth/
-config/
+/config/*
+!/config/rclone.supabase.example.conf
+!/config/plugin_synchronizer.supabase.example.json
 # Runtime data, customer photos, credentials, and database
 photobooth-data/
 **/rclone.conf

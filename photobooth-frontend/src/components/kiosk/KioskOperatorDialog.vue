@@ -111,6 +111,8 @@ async function openAdmin() {
         </div>
       </div>
 
+      <p v-if="state?.storage?.message" class="tw:text-sm" role="status">{{ state.storage.message }}</p>
+
       <label class="tw:mt-3 tw:flex tw:flex-col tw:gap-2 tw:text-base tw:font-medium">
         {{ t('kiosk.operator.password') }}
         <input

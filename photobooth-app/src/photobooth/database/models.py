@@ -47,6 +47,8 @@ class KioskPaymentSession(Base):
     retakes_used: Mapped[int] = mapped_column(Integer, default=0)
     prints_used: Mapped[int] = mapped_column(Integer, default=0)
     reserved_retake: Mapped[bool] = mapped_column(Boolean, default=False)
+    presentation_stage: Mapped[str] = mapped_column(String, default="review", server_default="delivery")
+    selected_filter: Mapped[str] = mapped_column(String, default="original", server_default="original")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -68,6 +70,8 @@ class Mediaitem(Base):
     captured_original: Mapped[Path | None] = mapped_column(PathType, default=None)
     # processed full-dimension, filter pipeline applied
     processed: Mapped[Path] = mapped_column(PathType)
+    filter_source: Mapped[Path | None] = mapped_column(PathType, nullable=True)
+    customer_delivery: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     pipeline_config: Mapped[dict[str, Any]] = mapped_column(JSON)  # json config of pipeline
     show_in_gallery: Mapped[bool] = mapped_column(Boolean, default=True)

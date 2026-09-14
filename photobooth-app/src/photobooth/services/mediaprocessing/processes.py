@@ -123,9 +123,7 @@ def process_and_generate_collage(files_in: list[Path], mediaitem: Mediaitem):
     ## prepare: create canvas and input images
     canvas_size = (config.canvas_width, config.canvas_height)
     canvas = Image.new("RGBA", canvas_size, color=None)
-    collage_images = expand_reused_captures(
-        [Image.open(image_in) for image_in in files_in], config.merge_definition
-    )
+    collage_images = expand_reused_captures([Image.open(image_in) for image_in in files_in], config.merge_definition)
 
     context = CollageContext(canvas, collage_images)
     steps_phase1: list[PipelineStep[CollageContext]] = []
@@ -136,6 +134,10 @@ def process_and_generate_collage(files_in: list[Path], mediaitem: Mediaitem):
     pipeline(context)
 
     canvas = context.canvas
+
+    if mediaitem.filter_source:
+        mediaitem.filter_source.parent.mkdir(parents=True, exist_ok=True)
+        canvas.save(mediaitem.filter_source, format="PNG")
 
     ## phase 2
     context = ImageContext(canvas, False)

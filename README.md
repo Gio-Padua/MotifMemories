@@ -87,6 +87,32 @@ photobooth/
 
 `photobooth-data/` and `ptbth/` are local runtime directories and must stay outside version control.
 
+## Setup guide
+
+Open Git Bash and start the backend from its runtime-data directory:
+
+```bash
+cd /e/photobooth/photobooth-data
+../ptbth/Scripts/python.exe -m photobooth
+```
+
+Alternatively, activate the virtual environment first:
+
+```bash
+cd /e/photobooth/photobooth-data
+source ../ptbth/Scripts/activate
+python -m photobooth
+```
+
+Keep that terminal open. Start the development frontend in a second Git Bash terminal:
+
+```bash
+cd /e/photobooth/photobooth-frontend
+npm run dev
+```
+
+Stop either server with `Ctrl+C`.
+
 ## Frontend development
 
 The backend normally runs on port `8000`; the Quasar development server proxies API requests from port `9000`.

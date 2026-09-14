@@ -137,6 +137,11 @@ class JobModelCollage(JobModelBase[CollageConfigurationSet]):
             pipeline_config=self._configuration_set.processing.model_dump(mode="json"),
         )
 
+        from ...appconfig import appconfig
+
+        if self._configuration_set.name in appconfig.kiosk.protected_action_names:
+            phase2_mediaitem.filter_source = Path("media/kiosk_sources", f"{phase2_mediaitem.id}.png")
+
         process_and_generate_collage([item.processed for item in phase1_mediaitems], phase2_mediaitem)
 
         assert phase2_mediaitem.processed.is_file()

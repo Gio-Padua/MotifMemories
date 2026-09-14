@@ -134,6 +134,8 @@ class Cache:
         self.fs_clear_all()
 
     def delete_for_mediaitem(self, mediaitem_id: UUID):
+        for preview in Path(CACHE_PATH).glob(f"kiosk-filter-{mediaitem_id}-*"):
+            preview.unlink(missing_ok=True)
         with Session(engine) as session:
             items = list(session.scalars(select(Cacheditem).where(Cacheditem.mediaitem_id == mediaitem_id)).all())
             for item in items:

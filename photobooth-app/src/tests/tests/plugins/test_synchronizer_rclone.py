@@ -9,6 +9,7 @@ from photobooth.plugins.synchronizer.immediate_synchronizer import ThreadedImmed
 from photobooth.plugins.synchronizer.regular_synchronizer import ThreadedRegularSync
 from photobooth.plugins.synchronizer.synchronizer import Synchronizer
 from photobooth.plugins.synchronizer.types import DeleteOperation, TaskDelete
+from photobooth.services.collection import MediacollectionService
 
 
 @pytest.fixture(scope="function")
@@ -35,11 +36,13 @@ def sync():
 
         # Enable first remote for all sync types
         remote = cfg.remotes[0]
+        remote.sync_scope = "archive"
         remote.enabled = True
         remote.enable_regular_sync = True
         remote.enable_immediate_sync = True
         remote.enable_sharepage_sync = True
         remote.shareconfig.enabled = True
+        remote.shareconfig.manual_public_link = None
         remote.shareconfig.use_sharepage = False
 
         s._config = cfg
@@ -179,10 +182,15 @@ def test_customer_result_upload_uses_exact_public_path():
             ),
         ),
     )
-    identifier = uuid4()
+    media = MediacollectionService().get_item_latest()
+    identifier = media.id
+    sync._save_delivery(identifier, {"status": "queued", "attempts": 0})
 
-    sync.collection_customer_result_added(Path("media/processed_full/result.jpg"), identifier)
-    with patch("photobooth.plugins.synchronizer.synchronizer.requests.head", return_value=MagicMock(ok=True)):
+    sync.collection_customer_result_added(media.processed, identifier)
+    missing = MagicMock(ok=False, status_code=404, headers={})
+    ready = MagicMock(ok=True, status_code=200, headers={"Content-Type": "image/jpeg"})
+    with patch("photobooth.plugins.synchronizer.synchronizer.requests.head", side_effect=[missing, ready]):
+        assert sync.get_customer_result_status(identifier) == {"status": "uploading"}
         status = sync.get_customer_result_status(identifier)
 
     assert sync._rclone_client.copyfile_async.call_args.args[3] == f"photobooth-testloc/booths/booth-001/results/{identifier}.jpg"

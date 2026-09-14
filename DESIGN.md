@@ -50,7 +50,9 @@ The existing PreviewStream and CountdownTimer fill the screen. The backend suppl
 
 ### Result
 
-Item-presenter mode places the portrait collage at left and Print, QR, Retake, and Done at right. Print and retake are mutually exclusive entitlements. The QR dialog polls the kiosk download endpoint until rclone confirms the public object, then displays a direct forced-download Supabase URL. Normal gallery browsing remains unchanged.
+Item-presenter mode keeps the portrait collage at left and advances the right panel through Review, Choose your look, and Delivery. Review offers Keep these photos, Retake all when available, and Done. Keep permanently closes retake. The filter panel shows Original, Soft, Warm, and Mono in a 2×2 thumbnail group with a Butter selected surface and Ink outline. Use this look confirms; 30 idle seconds automatically confirm the selected look. Frame artwork is composited after filtering and retains its colors.
+
+Delivery offers Print, QR, and Done after the JPEG is finalized. The QR dialog polls every two seconds for up to 60 seconds, cancels polling on close, and provides Retry. The result inactivity timer pauses during rendering, printing, and QR loading. Only final confirmed media is uploaded. Normal gallery browsing keeps its existing composition.
 
 ## Architecture
 
@@ -62,7 +64,9 @@ flowchart LR
   API --> STATE["Existing capture state machine"]
   STATE -->|"SSE job and kiosk state"| INDEX
   STATE --> RESULT["Existing item presenter route"]
-  RESULT --> ACTIONS["KioskResultActions"]
+  RESULT --> REVIEW["Keep / Retake"]
+  REVIEW -->|"Keep closes retake"| FILTER["KioskFilterPicker"]
+  FILTER -->|"Finalize look"| ACTIONS["KioskResultActions"]
   ACTIONS --> KIOSKAPI["Kiosk print/download/done API"]
 ```
 
@@ -71,7 +75,9 @@ flowchart LR
 - `KioskOperatorDialog.vue` owns password verification, test grants, void recovery, and admin entry.
 - `KioskIdleFlow.vue` owns Frames, Confirm, and Starting after entitlement.
 - `KioskCaptureHud.vue` reads the existing job model; it does not control capture.
-- `KioskResultActions.vue` owns guest-safe print, QR, retake, and done controls.
+- `GalleryDetailPage.vue` orchestrates review, filters, rendering, and delivery from persisted kiosk status.
+- `KioskFilterPicker.vue` owns thumbnail selection; the existing backend filter plugin produces previews and final pixels.
+- `KioskResultActions.vue` owns review actions and guest-safe print, QR, and done controls.
 - The existing Pinia store carries kiosk SSE state. Backend capture remains the only workflow state machine; SQLite is authoritative for payment and delivery entitlements.
 
 ## Tailwind and Quasar boundary

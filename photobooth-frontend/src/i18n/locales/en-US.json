@@ -265,14 +265,14 @@
     },
     "result": {
       "title": "That looks good on you.",
-      "description": "Print one copy, scan the QR code, or take the whole set again.",
+      "description": "Your look is ready. Print one copy and save it to your phone.",
       "print": "Print one copy",
       "printQueued": "Print queued",
       "printError": "The print could not be queued. Check the printer and try again.",
       "qr": "Show QR",
       "qrTitle": "Save it to your phone",
       "qrDescription": "Scan the code with your phone’s camera.",
-      "qrError": "The download link is not ready. Close this window and try again.",
+      "qrError": "Your photo is saved here, but the download is not ready. Retry or ask the booth operator.",
       "retake": "Retake all",
       "retakeTitle": "Retake the whole set?",
       "retakeDescription": "This print stays saved. The booth will start a fresh session with the same frame.",
@@ -280,6 +280,21 @@
       "retakeError": "The booth could not start another session. Please try again.",
       "done": "Done",
       "timeoutWarning": "This screen will close soon. Tap anywhere to keep it open."
+    },
+    "filters": {
+      "title": "Choose your look.",
+      "description": "One look for every moment. Your frame stays just as you chose it.",
+      "reviewDescription": "Keep this set and choose a look, or use your free retake. Keeping closes the retake option.",
+      "keep": "Keep these photos",
+      "confirm": "Use this look",
+      "useOriginal": "Use Original",
+      "preparing": "Preparing your look…",
+      "previewAlt": "Your collage with the selected look",
+      "previewUnavailable": "Preview unavailable",
+      "keepError": "We couldn’t confirm this step. Please try again.",
+      "renderError": "We couldn’t prepare this look. Retry or use Original.",
+      "timeoutWarning": "We’ll use your selected look soon. Tap anywhere for more time.",
+      "looks": { "original": "Original", "soft": "Soft", "warm": "Warm", "mono": "Mono" }
     },
     "setupRequired": {
       "title": "Booth setup required",

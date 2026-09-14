@@ -8,6 +8,7 @@ export type KioskState = {
   denominations: number[]
   readiness: Record<'camera' | 'printer' | 'disk' | 'cloud' | 'payment_hardware' | 'password_changed' | 'ready', boolean>
   test_grant_valid: boolean
+  storage?: { configured: boolean; message: string }
   session: null | {
     id: number
     mode: 'paid' | 'test'
@@ -20,6 +21,9 @@ export type KioskState = {
     retakes_remaining: number
     prints_remaining: number
     printable_result_id: string | null
+    presentation_stage: 'review' | 'filters' | 'rendering' | 'delivery'
+    selected_filter: string
+    upload?: { status: 'queued' | 'uploading' | 'ready' | 'failed'; error?: string }
   }
 }
 

@@ -11,7 +11,7 @@ The product is a single-terminal booth with curated 4-, 6-, and 8-photo layouts 
 - **Guest:** inserts cash, selects one frame, takes uninterrupted photos, reviews the finished collage, then prints or scans a QR code.
 - **Operator:** commissions, tests, and recovers camera, printer, sharing, payment, and storage through the existing administration.
 
-`Insert configured price (₱200 default) → choose frame → confirm frame → take 4, 6, or 8 photos → review → print/QR/retake/done`
+`Insert configured price (₱200 default) → choose frame → confirm frame → take 4, 6, or 8 photos → review (Keep / Retake) → choose look → print/QR/done`
 
 Review means the completed collage, never individual captures.
 
@@ -23,12 +23,13 @@ Review means the completed collage, never individual captures.
 - Every kiosk capture shows `10…2`, plays one complete 2.4-second smile cue, holds its final frame for 0.3 seconds, and only then opens the shutter. There is no per-photo approval or individual gallery entry.
 - The attract screen accepts ₱50, ₱100, and ₱200 notes toward a configurable session price (`kiosk.price_php`, ₱200 by default). Partial credit expires after 90 seconds; overpayment receives no change.
 - Payment entitlement is stored in SQLite and survives reloads/restarts. Failed capture starts do not consume it.
-- One complete retake and one print are included. Printing the first result closes retake; retaking makes only the new result printable.
+- One complete retake and one print are included. Keep these photos permanently closes retake. Filters follow Keep; only the confirmed final JPEG is printable and published.
+- Looks: Original, Soft, Warm, and Mono. One look applies to all photo windows; frame artwork, text, and background keep their colors. Sources and previews remain local.
 - Paid operation requires camera, printer, 2 GiB free disk, public customer-result storage, a changed admin password, and qualified payment hardware.
 - The hidden five-tap operator dialog issues a memory-only four-hour test grant. Test mode requires the camera but bypasses payment, printer, and cloud readiness.
 - Guest delivery includes one print and a QR code that points directly to a forced-download Supabase public URL; no customer website is required.
 - Kiosk result IDs, local files, and public cloud objects are retained for seven days. Public URLs do not expire before cleanup.
-- Frame selection resets after 45 seconds. Final review closes after 30 seconds, warning during the last 10 seconds.
+- Frame selection resets after 45 seconds. Review closes after 30 seconds without automatically keeping or uploading the result. Filter selection confirms the selected look after 30 seconds of inactivity (Original by default), warning in the last 10 seconds. Delivery closes after 30 idle seconds; active rendering, printing, and QR polling pause the timer.
 - Missing kiosk actions show `Operator code: KIOSK-C06`.
 
 ## Curated frames
@@ -46,4 +47,4 @@ Review means the completed collage, never individual captures.
 
 - The TB74 production driver is blocked until the purchased Philippine model, firmware, interface, harness, pulse map, and inhibit polarity are electrically qualified. `payment_enabled=false` is the shipping default and remains required until the TB74, changed admin password, camera, printer, disk, and cloud checks are all healthy.
 - A banknote vision model may be advisory only and can never grant credit.
-- Supabase uses the public `photobooth-testloc` bucket and server-side rclone S3 credentials. Only completed paid/test kiosk JPEGs upload; ordinary gallery media and source captures remain local. Customer accounts, Supabase Auth, BetterAuth, custom domains, refunds/change, vouchers, and optical cash authentication are not included.
+- Supabase uses the public `photobooth-testloc` bucket and server-side rclone S3 credentials. Only kept, filter-finalized paid/test kiosk JPEGs upload; ordinary gallery media, rejected sets, previews, and source captures remain local. Customer accounts, Supabase Auth, BetterAuth, custom domains, refunds/change, vouchers, and optical cash authentication are not included.
