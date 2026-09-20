@@ -4,7 +4,13 @@ ptbth/
 !/config/rclone.supabase.example.conf
 !/config/plugin_synchronizer.supabase.example.json
 # Runtime data, customer photos, credentials, and database
-photobooth-data/
+photobooth-data/*
+!photobooth-data/userdata/
+photobooth-data/userdata/*
+!photobooth-data/userdata/kiosk/
+photobooth-data/userdata/kiosk/*
+!photobooth-data/userdata/kiosk/frames/
+!photobooth-data/userdata/kiosk/frames/**
 **/rclone.conf
 .pytest_cache/
 .ruff_cache/

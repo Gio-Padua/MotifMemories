@@ -85,43 +85,91 @@ photobooth/
 └── KIOSK_SETUP.md        Commissioning and hardware qualification
 ```
 
-`photobooth-data/` and `ptbth/` are local runtime directories and must stay outside version control.
+`photobooth-data/` contains local runtime state. Only the curated PNG overlays in
+`photobooth-data/userdata/kiosk/frames/` are versioned; customer photos, configuration,
+credentials, databases, logs, and caches remain ignored. `ptbth/` is the ignored local
+Python virtual environment.
 
 ## Setup guide
 
-Open Git Bash and start the backend from its runtime-data directory:
+### First setup on a Windows booth PC
+
+Install these prerequisites:
+
+- Git for Windows, including Git Bash.
+- Python 3.11 or newer, with **Add Python to PATH** enabled.
+
+Clone Motif Moments and run the bootstrap from Git Bash:
 
 ```bash
-cd /e/photobooth/photobooth-data
+git clone https://github.com/Gio-Padua/MotifMemories.git
+cd MotifMemories
+bash setup.sh
+```
+
+The bootstrap creates `ptbth/`, installs this repository's modified `photobooth-app/`
+as an editable package, creates the runtime directories, and installs the six kiosk
+collage actions on a new setup. It is safe to run again: an existing configuration,
+database, credentials, and customer media are preserved.
+
+> [!WARNING]
+> Do not run `pip install photobooth-app`. That command installs the unmodified PyPI
+> release instead of the Motif Moments backend in this repository.
+
+### Start the booth
+
+Run the backend from its runtime-data directory:
+
+```bash
+cd photobooth-data
 ../ptbth/Scripts/python.exe -m photobooth
 ```
 
-Alternatively, activate the virtual environment first:
+The installed launcher is equivalent:
 
 ```bash
-cd /e/photobooth/photobooth-data
-source ../ptbth/Scripts/activate
-python -m photobooth
+cd photobooth-data
+../ptbth/Scripts/photobooth.exe
 ```
 
-Keep that terminal open. Start the development frontend in a second Git Bash terminal:
+Open `http://localhost:8000` and keep the backend terminal running. Stop the server with
+`Ctrl+C`. The committed production frontend is already bundled with the backend, so a
+normal booth PC does not need Node.js.
+
+### Update or repair an installation
+
+After pulling repository changes, rerun:
 
 ```bash
-cd /e/photobooth/photobooth-frontend
-npm run dev
+bash setup.sh
 ```
 
-Stop either server with `Ctrl+C`.
+Before moving an existing booth or making major configuration changes, stop the backend
+and back up `photobooth-data/config/` and `photobooth-data/database/database.sqlite`.
+Never commit those files. Supabase credentials belong only in the ignored
+`photobooth-data/config/rclone.conf`; see [KIOSK_SETUP.md](KIOSK_SETUP.md).
 
-## Frontend development
+If setup reports the wrong Python version, install Python 3.11 or newer and reopen Git
+Bash. If the backend imports from the wrong location, verify:
 
-The backend normally runs on port `8000`; the Quasar development server proxies API requests from port `9000`.
+```bash
+ptbth/Scripts/python.exe -m pip show photobooth-app
+```
+
+`Editable project location` must point to this clone's `photobooth-app` directory.
+
+### Frontend development
+
+Node.js is needed only when editing the Vue frontend. Start it in a second Git Bash
+terminal while the backend is running:
 
 ```bash
 cd photobooth-frontend
 npm install
 npm run dev
 ```
+
+The backend normally runs on port `8000`; the Quasar development server proxies API requests from port `9000`.
 
 Verify a frontend change with:
 
