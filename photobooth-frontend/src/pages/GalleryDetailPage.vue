@@ -2,48 +2,57 @@
   <q-layout view="hhh Lpr ffr">
     <div v-if="currentMediaitem" class="fixed-full">
       <template v-if="itemPresenterMode">
-        <main
-          class="kiosk-shell kiosk-result tw:grid tw:h-dvh tw:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)] tw:items-center tw:gap-[clamp(2rem,5vw,7rem)] tw:overflow-hidden tw:px-[clamp(2rem,6vw,7rem)] tw:py-[clamp(2rem,5vh,5rem)]"
-        >
-          <div
-            class="kiosk-result-print tw:mx-auto tw:h-full tw:max-h-[88vh] tw:w-full tw:max-w-[min(58vw,720px)] tw:rotate-[-1deg] tw:bg-card tw:p-[clamp(0.75rem,1.5vw,1.4rem)] tw:shadow-[14px_20px_48px_rgba(23,23,23,0.2)]"
-          >
+        <main class="kiosk-shell kiosk-result">
+          <div class="kiosk-result-print">
             <img
               v-if="filterPreview && stage === 'filters'"
               :src="filterPreview"
               :alt="$t('kiosk.filters.previewAlt')"
-              class="tw:h-full tw:w-full tw:object-contain"
+              class="tw:block tw:h-full tw:w-full tw:object-contain"
             />
             <MediaItemPreviewViewer v-else :item="currentMediaitem" style="user-select: none" />
           </div>
-          <KioskFilterPicker
-            v-if="stage === 'filters'"
-            :options="kioskFilters"
-            :busy="kioskBusy"
-            :error="kioskError"
-            @select="selectFilter"
-            @confirm="finalizeFilter"
-          />
-          <section v-else-if="stage === 'rendering'" role="status" class="tw:flex tw:flex-col tw:gap-4">
-            <h1 class="tw:text-4xl">{{ $t('kiosk.filters.preparing') }}</h1>
-            <q-spinner size="64px" />
+          <section class="kiosk-result-panel">
+            <ol class="kiosk-stage-indicator" :aria-label="$t('kiosk.filters.progressLabel')">
+              <li
+                v-for="(label, index) in kioskStageLabels"
+                :key="label"
+                :data-state="index + 1 === kioskStageStep ? 'current' : index + 1 < kioskStageStep ? 'complete' : 'upcoming'"
+                :aria-current="index + 1 === kioskStageStep ? 'step' : undefined"
+              >
+                <span aria-hidden="true" />{{ label }}
+              </li>
+            </ol>
+            <KioskFilterPicker
+              v-if="stage === 'filters'"
+              :options="kioskFilters"
+              :loading="filtersLoading"
+              :busy="kioskBusy"
+              :error="kioskError"
+              @select="selectFilter"
+              @confirm="finalizeFilter"
+            />
+            <section v-else-if="stage === 'rendering'" role="status" class="kiosk-rendering">
+              <h1 class="tw:text-4xl">{{ $t('kiosk.filters.preparing') }}</h1>
+              <q-spinner size="64px" />
+            </section>
+            <KioskResultActions
+              v-else
+              :key="currentMediaitem.id"
+              :stage="stage"
+              :busy="kioskBusy"
+              :error="kioskError"
+              :media-id="currentMediaitem.id"
+              :print-action-index="printActionIndex"
+              :qr-enabled="qrEnabled"
+              :qr-text-above="configurationStore.configuration.uisettings.qrcode_text_above"
+              :qr-text-below="configurationStore.configuration.uisettings.qrcode_text_below"
+              :qr-link-codes="configurationStore.configuration.uisettings.qrcode_link_codes"
+              :retake-action="retakeAction"
+              @keep="keepPhotos"
+              @busy="deliveryBusy = $event"
+            />
           </section>
-          <KioskResultActions
-            v-else
-            :key="currentMediaitem.id"
-            :stage="stage"
-            :busy="kioskBusy"
-            :error="kioskError"
-            :media-id="currentMediaitem.id"
-            :print-action-index="printActionIndex"
-            :qr-enabled="qrEnabled"
-            :qr-text-above="configurationStore.configuration.uisettings.qrcode_text_above"
-            :qr-text-below="configurationStore.configuration.uisettings.qrcode_text_below"
-            :qr-link-codes="configurationStore.configuration.uisettings.qrcode_link_codes"
-            :retake-action="retakeAction"
-            @keep="keepPhotos"
-            @busy="deliveryBusy = $event"
-          />
           <RouteAfterTimeout
             v-if="!kioskBusy && !deliveryBusy && stage !== 'rendering' && !(stage === 'filters' && kioskError)"
             :key="stage"
@@ -186,6 +195,7 @@ const kioskBusy = ref(false)
 const deliveryBusy = ref(false)
 const kioskError = ref<string | null>(null)
 const kioskFilters = ref<KioskFilterOption[]>([])
+const filtersLoading = shallowRef(false)
 const selectedFilter = ref('original')
 const filterPreview = ref<string | null>(null)
 const currentMediaitem = computed(() => mediacollectionStore.collection.find(item => item.id === selectedMediaitemId.value) ?? null)
@@ -193,6 +203,8 @@ const stage = computed(() => {
   const session = mainStore.kioskState?.session
   return session && session.printable_result_id === currentMediaitem.value?.id ? session.presentation_stage : 'review'
 })
+const kioskStageStep = computed(() => (stage.value === 'review' ? 1 : stage.value === 'delivery' ? 3 : 2))
+const kioskStageLabels = computed(() => [t('kiosk.filters.steps.review'), t('kiosk.filters.steps.look'), t('kiosk.filters.steps.save')])
 let statusTimer: ReturnType<typeof setInterval> | undefined
 let statusPending = false
 const props = defineProps<{
@@ -231,12 +243,16 @@ watch(
   stage,
   async value => {
     if (!props.itemPresenterMode || value !== 'filters' || !currentMediaitem.value) return
+    filtersLoading.value = true
+    kioskFilters.value = []
     try {
       const response = await _fetch(`/api/kiosk/results/${currentMediaitem.value.id}/filters`)
       if (!response.ok) throw new Error('preview unavailable')
       kioskFilters.value = await response.json()
     } catch {
       kioskFilters.value = [{ id: 'original', label: 'Original', preview_url: `/media/preview/${currentMediaitem.value.id}` }]
+    } finally {
+      filtersLoading.value = false
     }
   },
   { immediate: true }
@@ -468,12 +484,84 @@ const invokeAction = (trigger: TriggerSchema) => {
 
 <style scoped>
 .kiosk-result {
+  display: grid;
+  width: 100%;
+  height: 100dvh;
+  grid-template-columns: minmax(0, 1.15fr) minmax(390px, 0.85fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 7rem);
+  overflow: hidden;
+  padding: clamp(2rem, 5vh, 5rem) clamp(2rem, 6vw, 7rem);
   background-image: radial-gradient(circle at 20% 30%, rgb(23 23 23 / 2.5%) 0 0.7px, transparent 0.9px);
   background-size: 10px 10px;
 }
 
 .kiosk-result-print {
+  width: min(100%, 58.67dvh, 720px);
   aspect-ratio: 2 / 3;
+  margin-inline: auto;
+  padding: clamp(0.75rem, 1.5vw, 1.4rem);
+  overflow: hidden;
+  rotate: -1deg;
+  border-radius: var(--kiosk-panel-radius);
+  background: var(--kiosk-white);
+  box-shadow: var(--kiosk-panel-shadow);
+}
+
+.kiosk-result-panel {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 36rem;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.kiosk-stage-indicator {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  color: color-mix(in srgb, var(--kiosk-ink) 55%, var(--kiosk-paper));
+  font-size: 0.875rem;
+  font-weight: 600;
+  list-style: none;
+}
+
+.kiosk-stage-indicator li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kiosk-stage-indicator span {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: 0 0 auto;
+  border: 2px solid currentcolor;
+  border-radius: 999px;
+}
+
+.kiosk-stage-indicator li[data-state='current'] {
+  color: var(--kiosk-ink);
+}
+
+.kiosk-stage-indicator li[data-state='current'] span {
+  background: var(--kiosk-butter);
+}
+
+.kiosk-stage-indicator li[data-state='complete'] span {
+  background: var(--kiosk-ink);
+}
+
+.kiosk-rendering {
+  display: flex;
+  min-height: 18rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
 }
 
 @media (max-width: 1100px), (max-height: 760px) {
@@ -481,6 +569,41 @@ const invokeAction = (trigger: TriggerSchema) => {
     grid-template-columns: minmax(0, 1fr) minmax(360px, 0.8fr);
     gap: 2rem;
     padding: 2rem 3rem;
+  }
+}
+
+@media (max-width: 1000px) and (min-height: 800px) {
+  .kiosk-result {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 1rem;
+    padding: 1.25rem 2rem;
+  }
+  .kiosk-result-print {
+    width: min(100%, 28.67dvh, 320px);
+  }
+  .kiosk-result-panel {
+    max-width: none;
+    gap: 0.625rem;
+  }
+  .kiosk-stage-indicator {
+    max-width: 32rem;
+  }
+}
+
+@media (max-width: 849px), (max-width: 1000px) and (max-height: 799px) {
+  .kiosk-result {
+    height: auto;
+    min-height: 100dvh;
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+    padding: 1.5rem;
+  }
+  .kiosk-result-print {
+    width: min(70vw, 360px);
+  }
+  .kiosk-result-panel {
+    max-width: none;
   }
 }
 </style>

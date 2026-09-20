@@ -31,7 +31,7 @@ const progress = computed(() => (props.capturesTaken / props.totalCaptures) * 10
 
     <div
       v-else
-      class="tw:absolute tw:left-1/2 tw:top-7 tw:w-[min(640px,calc(100%-3rem))] tw:-translate-x-1/2 tw:rounded-2xl tw:bg-[color-mix(in_srgb,var(--kiosk-paper)_92%,transparent)] tw:px-7 tw:py-5 tw:shadow-[0_12px_34px_rgba(23,23,23,0.18)] tw:backdrop-blur-sm"
+      class="kiosk-capture-status tw:absolute tw:left-1/2 tw:top-7 tw:w-[min(640px,calc(100%-3rem))] tw:-translate-x-1/2 tw:bg-[color-mix(in_srgb,var(--kiosk-paper)_92%,transparent)] tw:px-7 tw:py-5 tw:backdrop-blur-sm"
     >
       <div class="tw:mb-3 tw:flex tw:items-center tw:justify-between tw:gap-5">
         <h1 class="tw:text-2xl tw:font-semibold tw:tracking-[-0.025em]">
@@ -43,3 +43,20 @@ const progress = computed(() => (props.capturesTaken / props.totalCaptures) * 10
     </div>
   </div>
 </template>
+
+<style scoped>
+.kiosk-capture-status {
+  border-radius: var(--kiosk-panel-radius);
+  box-shadow: var(--kiosk-panel-shadow);
+}
+
+@media (max-height: 760px) {
+  .kiosk-capture-status {
+    top: 1rem;
+    padding: 0.875rem 1.25rem;
+  }
+  .kiosk-capture-status > div {
+    margin-bottom: 0.5rem;
+  }
+}
+</style>

@@ -288,13 +288,16 @@
       "keep": "Keep these photos",
       "confirm": "Use this look",
       "useOriginal": "Use Original",
+      "loading": "Loading looks…",
       "preparing": "Preparing your look…",
       "previewAlt": "Your collage with the selected look",
       "previewUnavailable": "Preview unavailable",
       "keepError": "We couldn’t confirm this step. Please try again.",
       "renderError": "We couldn’t prepare this look. Retry or use Original.",
       "timeoutWarning": "We’ll use your selected look soon. Tap anywhere for more time.",
-      "looks": { "original": "Original", "soft": "Soft", "warm": "Warm", "mono": "Mono" }
+      "progressLabel": "Photo finishing progress",
+      "steps": { "review": "Review", "look": "Look", "save": "Save" },
+      "looks": { "original": "Original", "soft": "Dreamy", "warm": "Retro", "mono": "Mono" }
     },
     "setupRequired": {
       "title": "Booth setup required",

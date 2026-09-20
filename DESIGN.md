@@ -52,6 +52,8 @@ The existing PreviewStream and CountdownTimer fill the screen. The backend suppl
 
 Item-presenter mode keeps the portrait collage at left and advances the right panel through Review, Choose your look, and Delivery. Review offers Keep these photos, Retake all when available, and Done. Keep permanently closes retake. The filter panel shows Original, Soft, Warm, and Mono in a 2×2 thumbnail group with a Butter selected surface and Ink outline. Use this look confirms; 30 idle seconds automatically confirm the selected look. Frame artwork is composited after filtering and retains its colors.
 
+The collage keeps one authoritative 2:3 aspect ratio throughout Review, Look, rendering, and Save so the right-panel stage changes never move or resize it. Filter choices are compact horizontal cards; every preview is clipped to a fixed 2:3 container and uses `object-fit: contain`.
+
 Delivery offers Print, QR, and Done after the JPEG is finalized. The QR dialog polls every two seconds for up to 60 seconds, cancels polling on close, and provides Retry. The result inactivity timer pauses during rendering, printing, and QR loading. Only final confirmed media is uploaded. Normal gallery browsing keeps its existing composition.
 
 ## Architecture
@@ -85,4 +87,12 @@ flowchart LR
 - Tailwind v4 runs through Quasar’s Vite plugin list.
 - Theme and utilities use the `tw:` prefix and omit Preflight.
 - Guest surfaces are scoped beneath `.kiosk-shell`.
+- Reka dialogs are portaled outside `.kiosk-shell`, so shared `DialogContent` must explicitly apply Paper background, Ink foreground, focus treatment, viewport height bounds, and overflow behavior. Guest dialogs must not inherit Quasar body dark-mode colors.
 - `components.json` is shadcn-vue metadata; `quasar.config.ts` remains the only Vite authority.
+
+## Responsive contract
+
+- `1920×1080` and `1280×720`: landscape, two-column kiosk composition with no page scrolling; frame selection is 3×2.
+- `850×800` through `1000px` wide with at least `800px` height: compact single-column payment/result composition and 2×3 frame selection, with no clipping or overlap.
+- Below `850×800`: guest pages may scroll vertically, but controls, dialogs, previews, and copy must remain in normal document flow and must not overlap.
+- Portaled dialogs remain within `100dvh - 2rem`; internal scrolling is permitted only when content cannot fit the viewport.

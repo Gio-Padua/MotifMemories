@@ -103,11 +103,13 @@ async function openAdmin() {
         <div
           v-for="key in ['camera', 'printer', 'disk', 'cloud', 'payment_hardware', 'password_changed'] as const"
           :key="key"
-          class="tw:flex tw:min-h-12 tw:items-center tw:gap-3"
+          class="kiosk-readiness-row tw:flex tw:min-h-12 tw:min-w-0 tw:items-center tw:gap-3"
+          :data-ready="Boolean(checks?.[key])"
         >
           <Check v-if="checks?.[key]" class="tw:size-5" aria-hidden="true" />
           <X v-else class="tw:size-5" aria-hidden="true" />
-          <span>{{ t(`kiosk.operator.checks.${key}`) }}: {{ t(`kiosk.operator.status.${checks?.[key] ? 'ready' : 'notReady'}`) }}</span>
+          <span class="tw:min-w-0 tw:flex-1">{{ t(`kiosk.operator.checks.${key}`) }}</span>
+          <strong class="tw:text-sm">{{ t(`kiosk.operator.status.${checks?.[key] ? 'ready' : 'notReady'}`) }}</strong>
         </div>
       </div>
 
@@ -144,3 +146,25 @@ async function openAdmin() {
     </DialogContent>
   </Dialog>
 </template>
+
+<style scoped>
+.kiosk-readiness-row {
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--kiosk-ink) 6%, var(--kiosk-paper));
+}
+
+.kiosk-readiness-row[data-ready='true'] strong {
+  color: color-mix(in srgb, #176b46 88%, var(--kiosk-ink));
+}
+
+.kiosk-readiness-row[data-ready='false'] strong {
+  color: var(--kiosk-danger);
+}
+
+@media (max-width: 620px) {
+  .kiosk-readiness-row {
+    grid-column: 1 / -1;
+  }
+}
+</style>

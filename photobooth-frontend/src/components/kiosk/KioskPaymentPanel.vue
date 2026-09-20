@@ -41,15 +41,15 @@ const checks = computed(() => [
       <Settings aria-hidden="true" />
     </button>
 
-    <div class="tw:relative tw:max-w-4xl">
-      <div class="tw:mb-8 tw:flex tw:items-center tw:gap-5">
+    <div class="kiosk-payment-intro tw:relative tw:max-w-4xl">
+      <div class="kiosk-payment-brand tw:mb-8 tw:flex tw:items-center tw:gap-5">
         <img src="/icons/mm-logo-sm.webp" alt="" class="tw:size-16 tw:shrink-0 tw:object-contain" aria-hidden="true" />
         <div>
           <p class="tw:text-3xl tw:font-semibold tw:tracking-[-0.03em]">{{ t('kiosk.brand.name') }}</p>
           <p class="tw:text-lg tw:text-muted-foreground">{{ t('kiosk.brand.tagline') }}</p>
         </div>
       </div>
-      <div class="tw:mb-8 tw:flex tw:gap-4" aria-hidden="true">
+      <div class="kiosk-payment-motif tw:mb-8 tw:flex tw:gap-4" aria-hidden="true">
         <span class="tw:h-3 tw:w-24 tw:bg-[var(--kiosk-blush)]" /><span class="tw:h-3 tw:w-14 tw:bg-[var(--kiosk-butter)]" /><span
           class="tw:h-3 tw:w-8 tw:bg-[var(--kiosk-mint)]"
         />
@@ -66,9 +66,7 @@ const checks = computed(() => [
       </div>
     </div>
 
-    <div
-      class="kiosk-payment-card tw:relative tw:justify-self-end tw:w-full tw:max-w-[520px] tw:rounded-2xl tw:bg-card tw:p-[clamp(2rem,4vw,4rem)] tw:shadow-[12px_20px_46px_rgba(23,23,23,0.16)]"
-    >
+    <div class="kiosk-payment-card tw:relative tw:justify-self-end tw:w-full tw:max-w-[520px] tw:bg-card tw:p-[clamp(2rem,4vw,4rem)]">
       <template v-if="unavailable">
         <CircleAlert class="tw:mb-7 tw:size-14" aria-hidden="true" />
         <h2 class="tw:text-[clamp(2.2rem,4vw,4.4rem)] tw:font-semibold tw:leading-none tw:tracking-[-0.035em]">{{
@@ -109,9 +107,78 @@ const checks = computed(() => [
 </template>
 
 <style scoped>
+.kiosk-payment-card {
+  border-radius: var(--kiosk-panel-radius);
+  box-shadow: var(--kiosk-panel-shadow);
+}
+
 @media (max-height: 760px) {
   .kiosk-payment-card {
     padding: 1rem;
+  }
+}
+
+@media (max-width: 1000px) and (min-height: 800px) {
+  .kiosk-shell {
+    min-height: 800px;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 1rem;
+    padding: 1.25rem 2.5rem;
+  }
+  .kiosk-payment-intro {
+    max-width: none;
+  }
+  .kiosk-payment-brand,
+  .kiosk-payment-motif {
+    margin-bottom: 0.75rem;
+  }
+  .kiosk-payment-intro h1 {
+    max-width: 18ch;
+    font-size: clamp(2.5rem, 7vw, 3.6rem);
+    line-height: 0.95;
+  }
+  .kiosk-payment-intro > p {
+    max-width: 54ch;
+    margin-top: 0.75rem;
+    font-size: 1rem;
+  }
+  .kiosk-payment-card {
+    max-width: none;
+    justify-self: stretch;
+    padding: 1.25rem;
+  }
+  .kiosk-payment-card > svg {
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .kiosk-payment-card h2 {
+    font-size: 2.25rem;
+  }
+  .kiosk-payment-card > p {
+    margin-top: 0.75rem;
+    font-size: 1rem;
+  }
+  .kiosk-payment-card > div {
+    margin-top: 1rem;
+  }
+  .kiosk-payment-card button {
+    margin-top: 1.25rem;
+  }
+}
+
+@media (max-width: 849px), (max-width: 1000px) and (max-height: 799px) {
+  .kiosk-shell {
+    height: auto;
+    min-height: 100dvh;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+    overflow-y: auto;
+    padding: 2rem 1.5rem;
+  }
+  .kiosk-payment-card {
+    max-width: none;
   }
 }
 </style>

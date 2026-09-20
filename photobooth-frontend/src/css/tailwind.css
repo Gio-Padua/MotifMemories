@@ -36,6 +36,8 @@
   --kiosk-lavender: #c8bce8;
   --kiosk-white: #fffdfa;
   --kiosk-danger: #a93737;
+  --kiosk-panel-radius: 1rem;
+  --kiosk-panel-shadow: 12px 20px 46px rgb(23 23 23 / 16%);
   --radius: 0.875rem;
 }
 
@@ -53,6 +55,16 @@
   .kiosk-shell :focus-visible {
     outline: 3px solid var(--kiosk-ink);
     outline-offset: 4px;
+  }
+
+  [data-slot='dialog-content'] {
+    color: var(--kiosk-ink);
+    background: var(--kiosk-paper);
+  }
+
+  [data-slot='dialog-content'] :focus-visible {
+    outline: 3px solid var(--kiosk-ink);
+    outline-offset: 3px;
   }
 }
 

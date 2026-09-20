@@ -250,4 +250,21 @@ async function done() {
   background: transparent;
   box-shadow: none;
 }
+
+@media (max-width: 1000px) and (min-height: 800px) {
+  .kiosk-result-card {
+    max-width: none;
+  }
+  .kiosk-result-card :deep([data-slot='card-header']) {
+    padding-block: 0.25rem 0.75rem;
+  }
+  .kiosk-result-card :deep([data-slot='card-title']) {
+    font-size: clamp(2rem, 5vw, 3rem);
+  }
+  .kiosk-result-card :deep([data-slot='card-description']) {
+    max-width: none;
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+}
 </style>

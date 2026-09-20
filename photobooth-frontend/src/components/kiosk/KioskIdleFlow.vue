@@ -116,7 +116,7 @@ onBeforeUnmount(() => window.clearTimeout(inactivityTimer))
 
     <div
       v-else-if="stage === 'attract'"
-      class="tw:grid tw:h-full tw:grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)] tw:items-center tw:gap-[clamp(2rem,6vw,8rem)] tw:px-[clamp(3rem,8vw,10rem)] tw:py-[clamp(2rem,6vh,5rem)]"
+      class="kiosk-attract tw:grid tw:h-full tw:grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)] tw:items-center tw:gap-[clamp(2rem,6vw,8rem)] tw:px-[clamp(3rem,8vw,10rem)] tw:py-[clamp(2rem,6vh,5rem)]"
     >
       <div class="tw:max-w-4xl">
         <img src="/icons/mm-logo-xl.webp" alt="" class="tw:mb-8 tw:size-[clamp(7rem,11vw,10rem)] tw:object-contain" aria-hidden="true" />
@@ -126,7 +126,7 @@ onBeforeUnmount(() => window.clearTimeout(inactivityTimer))
         <p class="tw:mt-7 tw:max-w-[34ch] tw:text-[clamp(1.2rem,1.8vw,2rem)] tw:leading-relaxed tw:text-muted-foreground">
           {{ t('kiosk.brand.tagline') }}
         </p>
-        <div class="tw:mt-10 tw:flex tw:flex-wrap tw:gap-4">
+        <div class="kiosk-attract-actions tw:mt-10 tw:flex tw:flex-wrap tw:gap-4">
           <Button size="lg" class="tw:min-h-16 tw:min-w-64 tw:px-9 tw:text-xl" @click="showFrames">
             <Camera data-icon="inline-start" aria-hidden="true" />
             {{ t('kiosk.attract.action') }}
@@ -147,13 +147,13 @@ onBeforeUnmount(() => window.clearTimeout(inactivityTimer))
       </div>
     </div>
 
-    <div v-else class="tw:flex tw:h-full tw:flex-col tw:px-[clamp(2rem,5vw,6rem)] tw:py-[clamp(1.5rem,4vh,3.5rem)]">
-      <header class="tw:flex tw:items-end tw:justify-between tw:gap-8">
+    <div v-else class="kiosk-frames tw:flex tw:h-full tw:flex-col tw:px-[clamp(2rem,5vw,6rem)] tw:py-[clamp(1.5rem,4vh,3.5rem)]">
+      <header class="kiosk-frames-header tw:flex tw:items-end tw:justify-between tw:gap-8">
         <div>
           <h1 class="tw:text-[clamp(2.6rem,4vw,5rem)] tw:font-semibold tw:leading-none tw:tracking-[-0.035em]">{{ t('kiosk.frames.title') }}</h1>
           <p class="tw:mt-3 tw:text-[clamp(1rem,1.4vw,1.45rem)] tw:text-muted-foreground">{{ t('kiosk.frames.description') }}</p>
         </div>
-        <div class="tw:flex tw:items-center tw:gap-6">
+        <div class="kiosk-frames-actions tw:flex tw:items-center tw:gap-6">
           <span class="tw:flex tw:items-center tw:gap-3 tw:text-xl tw:font-semibold tw:tracking-[-0.025em]">
             <img src="/icons/mm-logo-sm.webp" alt="" class="tw:size-12 tw:object-contain" aria-hidden="true" />
             {{ t('kiosk.brand.name') }}
@@ -165,7 +165,9 @@ onBeforeUnmount(() => window.clearTimeout(inactivityTimer))
         </div>
       </header>
 
-      <div class="tw:mt-[clamp(1.25rem,3vh,2.5rem)] tw:grid tw:min-h-0 tw:flex-1 tw:grid-cols-3 tw:grid-rows-2 tw:gap-[clamp(0.75rem,1.5vw,1.5rem)]">
+      <div
+        class="kiosk-frame-grid tw:mt-[clamp(1.25rem,3vh,2.5rem)] tw:grid tw:min-h-0 tw:flex-1 tw:grid-cols-3 tw:grid-rows-2 tw:gap-[clamp(0.75rem,1.5vw,1.5rem)]"
+      >
         <button v-for="preset in presets" :key="preset.id" type="button" class="tw:min-h-0 tw:text-left" @click="choosePreset(preset)">
           <Card
             class="kiosk-frame-card tw:h-full tw:gap-1 tw:overflow-hidden tw:py-0 tw:transition-[transform,box-shadow] tw:duration-200 tw:hover:-translate-y-1 tw:hover:shadow-[0_18px_44px_rgba(23,23,23,0.16)]"
@@ -235,12 +237,85 @@ onBeforeUnmount(() => window.clearTimeout(inactivityTimer))
   display: flex;
   flex-direction: column;
   border: 0;
-  box-shadow: 0 8px 26px rgb(23 23 23 / 10%);
+  border-radius: var(--kiosk-panel-radius);
+  box-shadow: var(--kiosk-panel-shadow);
+}
+
+.kiosk-frame-grid > button {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
 }
 
 @media (max-height: 760px) {
   .kiosk-attract-print {
     width: min(28vw, 300px);
+  }
+}
+
+@media (max-width: 1000px) and (min-height: 800px) {
+  .kiosk-attract {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+    padding: 2rem 3rem;
+    text-align: center;
+  }
+  .kiosk-attract > div:first-child {
+    max-width: none;
+  }
+  .kiosk-attract > div:first-child > img,
+  .kiosk-attract h1,
+  .kiosk-attract p {
+    margin-inline: auto;
+  }
+  .kiosk-attract-print {
+    width: min(24dvh, 260px);
+  }
+  .kiosk-attract-actions {
+    justify-content: center;
+  }
+  .kiosk-frames {
+    padding: 1.5rem 2rem;
+  }
+  .kiosk-frames-header {
+    align-items: center;
+  }
+  .kiosk-frames-header h1 {
+    font-size: 2.75rem;
+  }
+  .kiosk-frames-actions > span {
+    display: none;
+  }
+  .kiosk-frames-actions {
+    margin-right: 4.5rem;
+  }
+  .kiosk-frame-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+  }
+  .kiosk-frame-card img {
+    max-height: min(9vh, 76px);
+  }
+}
+
+@media (max-width: 849px), (max-width: 1000px) and (max-height: 799px) {
+  .kiosk-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow-y: auto;
+  }
+  .kiosk-frames {
+    min-height: 980px;
+    padding: 1.5rem;
+  }
+  .kiosk-frames-header {
+    align-items: flex-start;
+  }
+  .kiosk-frame-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
   }
 }
 </style>
